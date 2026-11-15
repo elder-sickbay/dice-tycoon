@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ダイス・タイクーン（オンライン対戦）</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1b2142;--cream:#fff8ec;--ink:#2b2340;--muted:#7a7090;--gold:#f5b630;--gold2:#ffd56b;--line:#e7dcc6;--B:min(96vw,820px,calc((100vh - 200px)/.62));--S:calc(var(--B)*.69)}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{color:var(--ink);font-family:"M PLUS Rounded 1c",system-ui,sans-serif}
+body{background:radial-gradient(circle at 20% 0%,#323b75 0,transparent 50%),radial-gradient(circle at 100% 100%,#3a2a5e 0,transparent 45%),var(--bg);min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;color:#fff;max-width:1400px;margin:0 auto}
+.logo{font-weight:800;font-size:19px;display:flex;gap:8px;align-items:center}
+.logo span{background:linear-gradient(180deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hdr-r{font-size:13px;display:flex;gap:12px;align-items:center}
+.hdr-r label{display:flex;gap:4px;align-items:center;cursor:pointer}
+main{display:flex;gap:14px;justify-content:center;align-items:flex-start;padding:0 8px 24px;flex-wrap:wrap;max-width:1400px;margin:0 auto}
+@media (min-width:900px){:root{--B:min(calc(100vw - 420px),860px,calc((100vh - 190px)/.62))}}
+
+#play{display:flex;flex-direction:column;align-items:center;gap:6px}
+#stage{position:relative;width:var(--B);height:calc(var(--B)*.62);min-width:310px;perspective:2200px}
+#board{position:absolute;left:50%;top:46%;width:var(--S);height:var(--S);margin:calc(var(--S)/-2) 0 0 calc(var(--S)/-2);transform:rotateX(52deg) rotateZ(45deg);transform-style:preserve-3d;display:grid;grid-template:repeat(9,1fr)/repeat(9,1fr);gap:2px;padding:5px;background:#e9d6a8;border-radius:14px;box-shadow:1px 1px 0 #d4b97c,2px 2px 0 #cdb174,3px 3px 0 #c6a96c,4px 4px 0 #bfa164,5px 5px 0 #b8995c,6px 6px 0 #b19154,7px 7px 0 #aa894c,8px 8px 0 #a38144,9px 9px 0 #9c793c,10px 10px 0 #957134,22px 22px 40px rgba(0,0,0,.55)}
+.lake{grid-area:2/2/9/9;border-radius:10px;background:radial-gradient(ellipse at 40% 35%,#7fd3e6,#3a9fc0 55%,#2b7fa3);box-shadow:inset 0 0 0 4px #c9a96e,inset 0 0 30px rgba(0,0,0,.35);display:grid;place-items:center;overflow:hidden}
+.lake span{font-weight:800;font-size:calc(var(--S)*.07);color:rgba(255,255,255,.28);letter-spacing:.1em;transform:rotate(-45deg);white-space:nowrap}
+.up{transform:rotateZ(-45deg) rotateX(-52deg);transform-origin:50% 100%}
+.cell{position:relative;background:#fff;border-radius:6px;transform-style:preserve-3d;display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line)}
+.cell .band{width:100%;height:16%;flex:none;border-radius:6px 6px 0 0}
+.cell .nm{font-weight:800;font-size:max(7.5px,calc(var(--S)/9*.15));line-height:1.05;padding:1px 1px 0;word-break:break-all}
+.cell .pr{font-size:max(7px,calc(var(--S)/9*.12));color:var(--muted);font-weight:700;white-space:nowrap}
+.cell .bd{font-size:max(12px,calc(var(--S)/9*.34));line-height:1;letter-spacing:-2px;position:absolute;top:22%;transform:rotateZ(-45deg) rotateX(-52deg) translateY(-30%);transform-origin:50% 100%;filter:drop-shadow(2px 3px 1px rgba(0,0,0,.3));pointer-events:none}
+.cell .ic{font-size:calc(var(--S)/9*.42);line-height:1.15;margin-top:2%;transform:rotateZ(-45deg) rotateX(-52deg);transform-origin:50% 90%;filter:drop-shadow(2px 3px 1px rgba(0,0,0,.3))}
+.cell .tic{font-size:calc(var(--S)/9*.3);line-height:1;transform:rotateZ(-45deg) rotateX(-52deg);transform-origin:50% 90%}
+.cell.corner{background:linear-gradient(160deg,#fff,#fff0cc)}
+.cell.special{background:linear-gradient(160deg,#fff,#efe8ff)}
+.cell.owned{background:color-mix(in srgb,var(--own) 18%,#fff);box-shadow:inset 0 0 0 3px var(--own)}
+.cell.mono{animation:glow 1.6s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:inset 0 0 0 3px var(--own),0 0 10px 2px var(--own)}}
+.flag{position:absolute;top:1px;right:1px;font-size:max(8px,calc(var(--S)/9*.13));line-height:1;font-weight:800}
+.oly{position:absolute;top:16%;left:0;right:0;background:rgba(245,182,48,.92);color:#3b2a00;font-size:max(7px,calc(var(--S)/9*.11));font-weight:800}
+.tk{position:absolute;top:18%;left:0;right:0;display:flex;justify-content:center;gap:0;pointer-events:none;transform-style:preserve-3d}
+.tok{display:block;transform:rotateZ(-45deg) rotateX(-52deg);transform-origin:50% 100%;margin:0 -2px}
+.pawn{display:grid;place-items:start center;width:max(12px,calc(var(--S)/9*.3));height:max(18px,calc(var(--S)/9*.46));border-radius:50% 50% 35% 35%/60% 60% 40% 40%;background:radial-gradient(circle at 35% 25%,#fff8 0 18%,transparent 19%),var(--pc);border:2px solid #fff;box-shadow:0 3px 4px rgba(0,0,0,.45);color:#fff;font-size:9px;font-weight:800;padding-top:2px;font-style:normal}
+.pawn.cur{animation:bob .8s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+body.picking .cell:not(.nopick){animation:pick 1s ease-in-out infinite}
+@keyframes pick{50%{box-shadow:inset 0 0 0 3px #f5b630}}
+
+#center{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:calc(var(--B)*.5);height:calc(var(--B)*.34);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(3px,1vw,8px);color:#fff;pointer-events:none;z-index:3;text-shadow:0 2px 4px rgba(0,0,0,.6)}
+#ctrl{width:min(var(--B),560px);display:flex;flex-direction:column;align-items:center;gap:6px;background:linear-gradient(165deg,#2c356b,#1d2346);border-radius:16px;padding:10px;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#center .warn{left:-10%;right:-10%}
+.round{font-size:12px;opacity:.75;letter-spacing:.08em}
+.turnby{font-weight:800;font-size:clamp(14px,2.4vw,19px);display:flex;align-items:center;gap:8px}
+.turnby .dot{width:13px;height:13px;border-radius:50%}
+.dice{display:flex;gap:clamp(8px,2vw,14px)}
+.die{width:clamp(38px,7.5vw,58px);height:clamp(38px,7.5vw,58px);background:#fff;border-radius:22%;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:14%;box-shadow:0 5px 0 #c9bfae,0 8px 16px rgba(0,0,0,.4)}
+.die i{width:70%;height:70%;border-radius:50%;place-self:center}
+.die i.on{background:#2b2340}.die.d1 i.on{background:#e5484d}
+.dice.doubles .die{box-shadow:0 5px 0 #c9a23a,0 0 18px #f5b630}
+.gauge{width:min(260px,80%);height:14px;border-radius:999px;background:#151a36;position:relative;overflow:hidden;box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)}
+#gfill{height:100%;width:0;background:linear-gradient(90deg,#4cc9f0,#f5b630,#e5484d);border-radius:999px}
+.glab{display:grid;grid-template-columns:repeat(5,1fr);text-align:center;width:min(260px,80%);font-size:10px;opacity:.8;margin-top:-4px}
+.gauge::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 1px),rgba(255,255,255,.7) calc(20% - 1px) 20%)}
+.par{display:flex;gap:4px;align-items:center;font-size:11px}
+.par button{border:0;border-radius:999px;padding:3px 10px;font-weight:800;background:#3c4680;color:#cfd4f5;font-size:12px}
+.par button.on{background:var(--gold);color:#3b2a00}
+.par button:disabled{opacity:.4;cursor:default}
+.btn{border:0;border-radius:999px;padding:9px 20px;font-weight:800;font-size:15px}
+.btn.primary{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#3b2a00;box-shadow:0 4px 0 #b9831a}
+.btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 #b9831a}
+.btn.primary:disabled{background:#555d86;color:#c5c9e6;box-shadow:0 4px 0 #3d4469;cursor:default}
+.btn.ghost{background:#eee4d2;color:var(--ink)}
+.btn.small{padding:7px 14px;font-size:13px}
+#msg{font-size:clamp(11px,1.8vw,14px);min-height:1.4em;text-align:center;opacity:.92}
+#toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.85);background:var(--cream);color:var(--ink);padding:12px 16px;border-radius:14px;font-weight:700;text-align:center;opacity:0;pointer-events:none;transition:.2s;box-shadow:0 10px 30px rgba(0,0,0,.5);width:82%;font-size:clamp(12px,2vw,15px);z-index:3}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#toast b{display:block;font-size:1.2em;margin-bottom:3px}
+
+aside{width:min(96vw,360px);display:flex;flex-direction:column;gap:10px}
+#players{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pc{background:var(--cream);border-radius:14px;padding:9px 11px;border-left:6px solid var(--pc);transition:.2s;position:relative}
+.pc.active{box-shadow:0 0 0 3px var(--gold),0 6px 20px rgba(245,182,48,.35)}
+.pc.dead{opacity:.45;filter:grayscale(1)}
+.pc-top{display:flex;align-items:center;gap:5px;font-size:12.5px}
+.pc-top .dot{width:10px;height:10px;border-radius:50%;background:var(--pc)}
+.you{font-size:10px;background:var(--ink);color:#fff;border-radius:6px;padding:1px 5px}
+.pc-money{font-weight:800;font-size:19px}
+.pc-sub{font-size:11px;color:var(--muted)}
+.pc-card{font-size:11px;margin-top:2px;font-weight:700}
+.pc-badges{position:absolute;top:7px;right:9px;font-size:13px}
+.panel{background:var(--cream);border-radius:14px;padding:11px}
+.panel h3{font-size:13px;margin-bottom:6px;color:var(--muted)}
+#log{max-height:230px;overflow:auto;font-size:12px;line-height:1.5;display:flex;flex-direction:column;gap:3px}
+#log div{padding:3px 6px;border-radius:6px;background:#fff;border-left:4px solid var(--c,#ccc)}
+.wins{font-size:12px;line-height:1.65}
+
+.overlay{position:fixed;inset:0;background:rgba(10,12,30,.62);display:grid;place-items:center;z-index:50;padding:14px;backdrop-filter:blur(3px)}
+.card{background:var(--cream);border-radius:20px;padding:20px;width:min(430px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:pop .2s ease-out}
+@keyframes pop{from{transform:scale(.9);opacity:0}}
+.card h2{font-size:19px;margin-bottom:10px}
+.card .body{font-size:14px;line-height:1.7;margin-bottom:14px}
+.card .btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.card .btns.list{flex-direction:column;align-items:stretch}
+.card .btns.list .btn{border-radius:12px;text-align:left}
+.ci-band{height:10px;border-radius:6px;margin-bottom:10px}
+table.tt{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+table.tt td{padding:3px 6px;border-bottom:1px dashed var(--line)}
+table.tt td:last-child{text-align:right;font-weight:700}
+.bopt{display:flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:6px;font-weight:700;cursor:pointer}
+.bopt input{width:18px;height:18px;accent-color:#e3a21a}
+.bopt .c{margin-left:auto;color:var(--muted);font-size:13px}
+.bopt.lock{opacity:.5;cursor:default}
+.total{display:flex;justify-content:space-between;font-weight:800;margin-top:8px;font-size:15px}
+.total.over{color:#d33}
+#start .card{width:min(540px,100%);text-align:center}
+.title-big{font-size:clamp(30px,7vw,44px);font-weight:800;line-height:1.1;margin:6px 0 4px;background:linear-gradient(180deg,#ffb11a,#e36b00);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);font-size:13px;margin-bottom:12px}
+.seg{display:inline-flex;background:#eee4d2;border-radius:999px;padding:4px;gap:4px;margin:4px 0 10px}
+.seg button{border:0;background:transparent;padding:7px 14px;border-radius:999px;font-weight:800;color:var(--ink)}
+.seg button.on{background:var(--ink);color:#fff}
+.rules{text-align:left;font-size:12.5px;line-height:1.7;background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:14px}
+.rank{list-style:none;margin:10px 0}
+.rank li{display:flex;justify-content:space-between;padding:6px 10px;border-radius:8px;background:#fff;margin-bottom:5px;font-weight:700;border-left:6px solid var(--pc)}
+
+/* minigames */
+#mg-stage{height:190px;border-radius:14px;background:linear-gradient(180deg,#2c356b,#1d2346);position:relative;overflow:hidden;margin-bottom:10px;display:grid;place-items:center;perspective:600px}
+#mg-info{text-align:center;font-weight:700;margin-bottom:12px;min-height:1.5em}
+.coin{width:110px;height:110px;position:relative;transform-style:preserve-3d}
+.coin .face{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;font-size:24px;font-weight:800;backface-visibility:hidden;background:radial-gradient(circle at 35% 30%,#ffe9a3,#f5b630 60%,#c98a12);color:#7a4d00;box-shadow:inset 0 0 0 6px #e3a21a}
+.coin .back{transform:rotateY(180deg);background:radial-gradient(circle at 35% 30%,#f2f2f2,#bfc4cf 60%,#8a90a0);color:#4a4f5c;box-shadow:inset 0 0 0 6px #9aa0ae}
+.pk{position:absolute;inset:0}
+.goal{position:absolute;left:50%;top:18px;width:250px;height:110px;transform:translateX(-50%);border:5px solid #fff;border-bottom:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.15) 0 2px,transparent 2px 14px),repeating-linear-gradient(0deg,rgba(255,255,255,.15) 0 2px,transparent 2px 14px)}
+.grass{position:absolute;left:0;right:0;bottom:0;height:62px;background:linear-gradient(#3fae5a,#2d8c45)}
+.keeper{position:absolute;left:50%;top:58px;font-size:46px;transform:translateX(-50%);transition:transform .45s cubic-bezier(.2,.8,.3,1)}
+.ball{position:absolute;left:50%;bottom:14px;font-size:30px;transform:translate(-50%,0);transition:transform .55s cubic-bezier(.2,.7,.3,1)}
+.result{position:absolute;top:8px;left:0;right:0;text-align:center;font-weight:800;font-size:26px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6);z-index:2}
+@media (max-width:520px){.cell .pr,.cell .nm{display:none}}
+.pk .result{top:auto;bottom:14px}
+.potbox{font-weight:800;font-size:clamp(15px,2.6vw,22px);background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.25);border-radius:10px;padding:2px 14px;margin-top:-4px}
+.warn{position:absolute;left:0;right:0;top:38%;background:repeating-linear-gradient(-45deg,#d92b2b 0 18px,#b51f1f 18px 36px);color:#fff;text-align:center;padding:8px 0;z-index:4;display:none;flex-direction:column;align-items:center;box-shadow:0 0 0 3px #ffd56b}
+.warn.show{display:flex;animation:warn 2.6s forwards}
+.warn b{font-size:clamp(18px,3.4vw,28px)} .warn span{font-weight:800;color:#ffd56b;letter-spacing:.15em} .warn small{background:#fff;border-radius:6px;padding:0 8px;font-weight:800}
+@keyframes warn{0%{opacity:0;transform:scaleY(.2)}8%{opacity:1;transform:scaleY(1)}85%{opacity:1}100%{opacity:0;visibility:hidden}}
+.rk{margin-left:auto;font-size:11px;font-weight:800;border-radius:6px;padding:0 6px;background:#ccc;color:#fff}
+.rk.r1{background:#e3a21a}.rk.r2{background:#8d9aae}.rk.r3{background:#b9733b}.rk.r4{background:#666}
+#mini .card{width:min(580px,100%)}
+.gc{display:grid;grid-template-columns:72px 1fr 82px;gap:8px;width:100%;height:100%;padding:8px;color:#fff}
+.gc-side{display:flex;flex-direction:column;gap:5px;font-size:11px}
+.gc-r{background:#3c4680;border-radius:8px;text-align:center;padding:4px 0;font-weight:800;line-height:1.1}
+.gc-r.on{background:var(--gold);color:#3b2a00}.gc-r.win{background:#2fae6a}.gc-r.lose{background:#a33}
+.gc-hist{background:rgba(255,255,255,.08);border-radius:8px;padding:3px;flex:1;text-align:center;line-height:1.6;font-weight:700;overflow:hidden}
+.gc-hist div{background:#e5484d;border-radius:5px;margin-bottom:2px}
+.gc-lab{text-align:center;opacity:.75}
+.gc-bet{background:#3c4680;border-radius:8px;text-align:center;padding:5px 0;font-weight:800;font-size:13px}
+.gc-bet.on{background:#fff;color:var(--ink);box-shadow:0 0 0 2px var(--gold)}
+.gc-mul{font-size:26px;font-weight:800;text-align:center;color:#ffd56b}
+.gc-mid{position:relative;border-radius:10px;overflow:hidden;background:linear-gradient(#26467e,#1b3360)}
+.gc-prize{position:absolute;top:4px;left:0;right:0;text-align:center;font-weight:800;color:#ffd56b;font-size:20px;z-index:3;text-shadow:0 2px 4px #000}
+.gc-mid .goal{width:78%;top:34px;height:105px}
+.gc-mid .keeper{top:72px}
+.gc-mid .coin{position:absolute;left:50%;top:50%;margin:-55px 0 0 -55px}
+.gc-mid .result{top:50%;bottom:auto;transform:translateY(-50%);font-size:48px;letter-spacing:.08em;-webkit-text-stroke:2px #3b2a00}
+.float{position:absolute;z-index:5;font-weight:800;font-size:clamp(13px,2.4vw,20px);color:#fff;padding:2px 10px;border-radius:999px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);animation:floatup 1.6s ease-out forwards;box-shadow:0 4px 10px rgba(0,0,0,.35)}
+@keyframes floatup{0%{opacity:0;transform:translate(-50%,-20%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-160%)}}
+#bignum{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:clamp(60px,12vw,110px);font-weight:800;color:#fff;text-shadow:0 0 0 #000,0 6px 0 #c9861a,0 0 30px rgba(245,182,48,.8);opacity:0;pointer-events:none;z-index:4}
+#bignum.show{animation:big 1s ease-out}
+@keyframes big{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0}}
+#cert{position:fixed;inset:0;display:grid;place-items:center;z-index:60;pointer-events:none}
+.certcard{width:min(340px,86vw);background:#f7ecd2;border:3px double #a07a3b;border-radius:10px;padding:18px 18px 14px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.55);position:relative;animation:certin .35s cubic-bezier(.2,.9,.3,1.3);font-family:"M PLUS Rounded 1c",serif;background-image:repeating-linear-gradient(0deg,rgba(160,122,59,.06) 0 2px,transparent 2px 6px)}
+@keyframes certin{from{transform:scale(.5) rotate(-8deg);opacity:0}}
+.certcard .seal{position:absolute;left:-14px;top:-14px;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f25a5a,#b81d1d);color:#fff;display:grid;place-items:center;font-size:24px;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+.certcard h3{font-size:22px;letter-spacing:.3em;color:#6b4a14;border-bottom:2px solid #a07a3b;padding-bottom:4px;margin-bottom:8px}
+.certcard .cn{font-size:20px;font-weight:800;margin:4px 0}
+.certcard .row{font-size:13px;color:#6b5a3a}
+.certcard .sign{margin-top:8px;font-style:italic;text-align:right;font-weight:800}
+.sellrow{display:flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:7px 12px;margin-bottom:5px;font-weight:700;cursor:pointer}
+.sellrow input{width:18px;height:18px;accent-color:#e5484d}
+.sellrow .c{margin-left:auto;font-size:13px;color:var(--muted)}
+.shortbox{display:grid;grid-template-columns:1fr auto;gap:2px 10px;background:#2b2340;color:#fff;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-weight:700}
+.shortbox .neg{color:#ff7b7b}.shortbox .pos{color:#7be08f}
+#itempop{position:absolute;right:8px;bottom:8px;display:flex;gap:8px;align-items:center;background:linear-gradient(135deg,#fff8ec,#ffe7b0);color:var(--ink);border-radius:12px;padding:6px 12px 6px 8px;box-shadow:0 0 0 2px #f5b630,0 8px 20px rgba(0,0,0,.4);z-index:6;opacity:0;transform:translateX(120%);pointer-events:none}
+#itempop.show{animation:ipop 2.2s ease-out forwards}
+@keyframes ipop{0%{opacity:0;transform:translateX(120%)}12%{opacity:1;transform:translateX(0)}82%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(120%)}}
+#itempop .ii{font-size:30px}
+#itempop div{display:flex;flex-direction:column;line-height:1.2;font-size:12px}
+#itempop b{font-size:14px} #itempop span:last-child{font-weight:800;color:#d9822b}
+.pc-item{font-size:11px;font-weight:700;color:#8a5a00;margin-top:1px}
+#equip{background:#fff;border-radius:12px;padding:8px 10px;margin:4px 0 12px;text-align:left}
+.eqrow{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;font-weight:700;border-bottom:1px dashed var(--line)}
+.eqrow:last-child{border:0}
+.eqrow .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.eqrow select{margin-left:auto;font-family:inherit;font-size:13px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);max-width:58%}
+.eqdesc{font-size:11px;color:var(--muted);font-weight:400;padding-left:18px;margin-top:-2px;margin-bottom:2px}
+.onbox{background:#fff;border-radius:12px;padding:12px;margin:6px 0;text-align:left}
+.onl{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:14px}
+.onbox input{font-family:inherit;font-size:16px;padding:9px 12px;border-radius:10px;border:2px solid var(--line);outline:none}
+.onbox input:focus{border-color:var(--gold)}
+.ondiv{text-align:center;color:var(--muted);font-size:12px;margin:8px 0}
+.code{font-size:44px;font-weight:800;letter-spacing:.25em;background:#2b2340;color:#ffd56b;border-radius:14px;padding:6px 0 6px .25em;margin:6px 0 10px}
+#lbItem,#lbDice,#lbChar{margin-left:auto;font-family:inherit;font-size:13px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);max-width:60%}
+.fw{position:absolute;inset:-20%;pointer-events:none;z-index:5}
+.fw i{position:absolute;width:6px;height:6px;border-radius:50%;opacity:0;animation:spark 1.3s ease-out forwards;box-shadow:0 0 6px currentColor}
+@keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1.4)}80%{opacity:1}100%{opacity:0;transform:translate(var(--dx),calc(var(--dy) + 18px)) scale(.4)}}
+.fwtext{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(43,35,64,.92);color:#fff;border-radius:14px;padding:8px 16px;text-align:center;box-shadow:0 0 0 2px #ffd56b,0 8px 24px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:2px;font-size:13px;white-space:nowrap;animation:fwt 2.5s ease-out forwards}
+.fwtext b{font-size:20px;color:#ffd56b}.fwtext small{opacity:.85}
+@keyframes fwt{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}20%{transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{opacity:0}}
+.bonusbox{margin-top:8px;background:#2b2340;color:#fff;border-radius:12px;padding:8px;font-size:14px;line-height:1.6}
+.bonusbox b{color:#ffd56b;font-size:18px}
+.pc-item small{color:var(--muted);font-weight:400}
+.chb{color:var(--ink);font-weight:800}.chb i{font-style:normal;font-size:10px;background:#2b2340;color:#ffd56b;border-radius:5px;padding:0 4px}
+#room{z-index:70}#modal{z-index:80}
+.roomcard{width:min(760px,100%);text-align:left}
+.roomhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.roomhead h2{margin:0}.roomhead .goldbar{margin-left:auto;font-weight:800;font-size:13px}
+#roomTabs{display:flex;flex-wrap:wrap;margin:8px 0}#roomTabs button{padding:7px 12px;font-size:13px}
+.sec{background:#fff;border-radius:12px;padding:10px;margin-bottom:10px}.sec h4{margin:4px 0 8px;font-size:14px}.sec h4 small{font-weight:400;color:var(--muted);font-size:11px;margin-left:6px}
+.tiles{display:flex;flex-wrap:wrap;gap:6px}
+.tile{width:84px;border-radius:10px;padding:6px 4px;text-align:center;background:#faf6ee;border:2px solid var(--rc);cursor:pointer;position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px}
+.tile.sel{background:var(--rc);color:#fff;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--rc)}.tile.dim{opacity:.45}
+.tic2{font-size:24px;line-height:1.1}.rk2{position:absolute;top:2px;left:4px;font-size:10px;color:var(--rc)}.tile.sel .rk2{color:#fff}
+.tn{font-weight:800;line-height:1.15}.tl{font-size:10px;opacity:.8}
+.hero{display:flex;gap:12px;align-items:flex-start;border-left:6px solid var(--rc);padding-left:10px;margin-bottom:8px}.hero .big{font-size:44px}
+.rkb{font-style:normal;background:var(--rc);color:#fff;border-radius:6px;padding:0 6px;font-size:11px}
+.statgrid{display:grid;grid-template-columns:auto auto auto auto;gap:1px 10px;font-size:11.5px;margin:4px 0}.statgrid b small{color:var(--muted);font-weight:400}
+.skill{background:#f3ebff;border-radius:8px;padding:4px 8px;font-size:12px;margin:4px 0}
+.small{font-size:11.5px;color:var(--muted);line-height:1.6}
+.xpbar{height:8px;background:#eee4d2;border-radius:99px;overflow:hidden;margin:4px 0;max-width:260px}.xpbar i{display:block;height:100%;background:linear-gradient(90deg,#4cc9f0,#f5b630)}
+.roommsg{min-height:1.4em;font-weight:800;color:#6b4a14;text-align:center}.great{color:#e5484d;font-size:16px}
+.pchip{display:inline-flex;align-items:center;gap:1px;border:1.5px solid var(--rc);border-radius:6px;padding:0 3px;margin:1px 2px 0 0;font-size:11px;background:#fff}.pchip b{font-size:9px;color:var(--rc)}
+.decksum{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:8px 10px;border-left:6px solid var(--rc);text-align:left}.decksum .big{font-size:34px}.decksum .openRoom2{margin-left:auto}
+.lbdeckwrap{margin:6px 0 10px}
+.testbar{background:#fff7d6;border:2px dashed #e3a21a}.testbar label{display:flex;gap:6px;align-items:center;cursor:pointer}.tsel{font-family:inherit;font-size:13px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);margin:2px 4px 2px 0;max-width:100%}.tslot{padding:6px 0;border-bottom:1px dashed var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🎲 <span>ダイス・タイクーン</span></div>
+  <div class="hdr-r"><label><input type="checkbox" id="fast" checked> CPU高速</label></div>
+</header>
+<main>
+  <div id="play">
+  <div id="stage">
+    <div id="board"><div class="lake"></div></div>
+    <div id="center">
+      <div class="round" id="round"></div><div class="potbox" id="potbox"></div><div class="warn" id="warn"></div>
+      <div class="turnby" id="turnby"></div>
+      <div class="dice" id="dice"><div class="die"></div><div class="die"></div></div>
+      <div id="toast"></div><div id="bignum"></div><div id="itempop"></div>
+    </div>
+  </div>
+  <div id="ctrl">
+      <div class="gauge"><div id="gfill"></div></div>
+      <div class="glab"><span>2〜5</span><span>4〜7</span><span>6〜8</span><span>7〜10</span><span>9〜12</span></div>
+      <div class="par" id="par"><button data-p="" class="on">通常</button><button data-p="odd">奇数</button><button data-p="even">偶数</button><span id="parleft"></span></div>
+      <button class="btn primary" id="roll" disabled>サイコロを振る</button>
+      <button class="btn ghost small" id="skipBtn" hidden>⏭ 手番をスキップ（ホスト）</button>
+      <div id="msg"></div>
+  </div>
+  </div>
+  <aside>
+    <div id="players"></div>
+    <div class="panel"><h3>📜 ログ</h3><div id="log"></div></div>
+    <div class="panel wins"><h3>🏆 勝利条件</h3>
+      ・<b>トリプル独占</b>：カラー独占を3つ達成<br>
+      ・<b>ライン独占</b>：角と角の間の物件（観光地含む）をすべて所有<br>
+      ・<b>観光地独占</b>：6つの観光地をすべて所有<br>
+      ・ほかの全員を<b>破産</b>させる（ターン制限なし・決着がつくまで続く）
+    </div>
+  </aside>
+</main>
+
+<div class="overlay" id="modal" hidden><div class="card"><h2 id="m-title"></h2><div class="body" id="m-body"></div><div class="btns" id="m-btns"></div></div></div>
+<div class="overlay" id="info" hidden><div class="card"><h2 id="i-title"></h2><div class="body" id="i-body"></div><div class="btns"><button class="btn ghost" id="i-close">閉じる</button></div></div></div>
+<div class="overlay" id="mini" hidden><div class="card"><h2 id="mg-title">🎰 ボーナスゲーム</h2><div id="mg-stage"></div><div id="mg-info"></div><div class="btns" id="mg-btns" style="justify-content:center"></div></div></div>
+<div id="cert" hidden></div>
+<div class="overlay" id="room" hidden><div class="card roomcard">
+  <div class="roomhead"><h2>🏠 マイルーム</h2><span class="goldbar"></span><button class="btn ghost small" id="roomClose">閉じる</button></div>
+  <div class="seg" id="roomTabs"><button data-t="deck" class="on">デッキ</button><button data-t="card">キャラ強化</button><button data-t="pend">ペンダント</button><button data-t="gacha">ガチャ</button><button data-t="shop">ショップ</button></div>
+  <div id="roomBody"></div>
+</div></div>
+<div class="overlay" id="lobby" hidden><div class="card" style="text-align:center">
+  <h2>📱 オンライン対戦ロビー</h2>
+  <div class="sub">この部屋コードを友だちに伝えてください（最大4人）</div>
+  <div class="code" id="lbCode"></div>
+  <ul class="rank" id="lbSeats"></ul>
+  <div class="lbdeckwrap"><div class="small" style="text-align:left">あなたのデッキ（マイルームで編成したもの）</div><div id="lbDeck"></div></div>
+  <div id="lbNote" class="sub" style="margin-top:8px"></div>
+  <div class="btns" style="justify-content:center"><button class="btn ghost" id="lbLeave">退出</button><button class="btn primary" id="lbStart">ゲーム開始</button></div>
+</div></div>
+<div class="overlay" id="result" hidden><div class="card" style="text-align:center"><div style="font-size:46px">🏆</div><h2 id="r-title"></h2><div class="sub" id="r-reason"></div><ul class="rank" id="r-rank"></ul><button class="btn primary" id="r-again">もう一度遊ぶ</button></div></div>
+
+<div class="overlay" id="start"><div class="card">
+  <div style="font-size:38px">🎲🏙️💰</div>
+  <div class="title-big">ダイス・タイクーン</div>
+  <div class="sub">世界の都市を買い占めて、ライバルを破産させよう</div>
+  <div class="goldbar" style="font-weight:800;margin-bottom:4px"></div><button class="btn primary openRoom" style="margin-bottom:8px">🏠 マイルーム（デッキ編成・育成・ガチャ）</button><br>
+  <div class="seg" id="segMode"><button data-m="cpu" class="on">🤖 CPU対戦</button><button data-m="online">📱 オンライン対戦</button></div>
+  <div id="cpuPanel">
+  <div style="font-weight:800;font-size:14px">対戦人数</div>
+  <div class="seg" id="seg"><button data-n="2">2人</button><button data-n="3">3人</button><button data-n="4" class="on">4人</button></div>
+  <div style="font-weight:800;font-size:14px">クラス（賭け金の規模）</div>
+  <div class="seg" id="segC"><button data-c="1" class="on">エコノミー</button><button data-c="2.5">ビジネス ×2.5</button><button data-c="5">ファースト ×5</button></div>
+  <div style="font-weight:800;font-size:14px">CPUの強さ</div>
+  <div class="seg" id="segL"><button data-l="0">EASY</button><button data-l="1" class="on">NORMAL</button><button data-l="2">HARD</button></div>
+  </div>
+  
+  <div class="rules">
+    🎲 <b>パワーゲージ</b>を止めて目をコントロール。<b>奇数・偶数</b>指定は1試合3回まで（奇数ではゾロ目は出ない）<br>
+    🏙️ 空き地では土地＋<b>別荘・ビル・ホテル</b>をまとめて建設（ホテルは2周目から）。3つそろえば<b>ランドマーク</b><br>
+    ⚔️ 他人の都市は<b>建設費の2倍</b>で買収。ランドマークと観光地は買収不可<br>
+    🏅 オリンピック：自分の物件の通行料を×2→×3→×4→×5に　🎉 フェスティバル都市は通行料2倍<br>
+    🪙 ボーナスゲーム：コイントス（オモテ/ウラ）かPKで報酬倍率x2→x4→x8（STOPで受け取り）<br>
+    🃏 天使・割引・シールド・脱出は1枚だけ保管可。都市交換・強制売却で攻撃も<br>🏆 独占勝利ボーナス：トリプル×2・ライン×3・観光地×5<br>🧑 キャラクターごとに7つの能力値（通行料割引・ミニゲーム勝利・特殊費用割引・黄金フォーチュン・建設費用割引・ゲージインパクト・買収費用割引）<br>🎡 運命のルーレット：誰に何が起きるかをルーレットで決定
+  </div>
+  <div id="cpuPanel2">
+  <div style="font-weight:800;font-size:14px">🧑 あなたのデッキ</div>
+  <div id="equip"></div>
+  <button class="btn primary" id="go" style="font-size:18px;padding:12px 40px">ゲームスタート</button>
+  </div>
+  <div id="onPanel" hidden>
+    <div class="onbox">
+      <label class="onl">あなたの名前<input id="nick" maxlength="10" placeholder="例：たろう"></label>
+      <div style="font-weight:800;font-size:14px;margin-top:6px">クラス（部屋を作る人が決める）</div>
+      <div class="seg" id="segC2"><button data-c="1" class="on">エコノミー</button><button data-c="2.5">ビジネス</button><button data-c="5">ファースト</button></div>
+      <button class="btn primary" id="mkRoom" style="width:100%">🏠 部屋を作る</button>
+      <div class="ondiv">または</div>
+      <div style="display:flex;gap:8px"><input id="codeIn" maxlength="4" placeholder="部屋コード" style="flex:1;text-transform:uppercase"><button class="btn primary" id="joinBtn">参加する</button></div>
+      <div id="onNote" class="sub" style="margin-top:8px"></div>
+      <div class="sub" style="font-size:11.5px;text-align:left;line-height:1.6">📶 アカウント不要。部屋を作った人のスマホが親機になります。親機がページを閉じると対戦が終わるので、開いたままにしてください。同じWi-Fiだと安定してつながります。</div>
+    </div>
+  </div>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rand=n=>Math.floor(Math.random()*n);
+const r1=n=>Math.round(n*10)/10;
+let K=1;
+const fmt=n=>r1(n*K).toLocaleString()+'万';
+
+const START_MONEY=200, SALARY=30, N=32, TOUR_PRICE=10, TOUR_TOLL=8, ISLAND_FEE=20, TRAVEL_FEE=5, OLY_FEE=5;
+const GCOL=['#9bd770','#3fae5a','#4a90e2','#2f4fb3','#e8473f','#9b59d0','#f39c34','#a3233a'];
+const TCOL={blue:'#6fd0f2',pink:'#ff8fc8'};
+const DEF=[
+ {t:'start',n:'スタート',ic:'🏁'},
+ {t:'city',n:'カイロ',g:0,b:2},{t:'city',n:'ハノイ',g:0,b:2.6},
+ {t:'chance',n:'チャンス',ic:'🃏'},
+ {t:'tour',n:'バリ島',tt:'blue',ic:'🏝️'},
+ {t:'city',n:'バンコク',g:1,b:4.8},{t:'city',n:'マニラ',g:1,b:4.8},{t:'city',n:'クアラルンプール',g:1,b:5.4},
+ {t:'island',n:'無人島',ic:'🌴'},
+ {t:'city',n:'イスタンブール',g:2,b:7.2},{t:'city',n:'アテネ',g:2,b:7.2},
+ {t:'tour',n:'マチュピチュ',tt:'pink',ic:'⛰️'},
+ {t:'bonus',n:'ボーナスゲーム',ic:'🪙'},
+ {t:'city',n:'ローマ',g:3,b:9.4},{t:'city',n:'マドリード',g:3,b:10},
+ {t:'tour',n:'ハワイ',tt:'blue',ic:'🌺'},
+ {t:'olympic',n:'オリンピック',ic:'🏅'},
+ {t:'city',n:'シドニー',g:4,b:11.8},{t:'city',n:'ソウル',g:4,b:12.4},{t:'city',n:'北京',g:4,b:12.4},
+ {t:'roulette',n:'運命のルーレット',ic:'🎡'},
+ {t:'tour',n:'ナイアガラ',tt:'pink',ic:'💦'},
+ {t:'city',n:'パリ',g:5,b:14},{t:'city',n:'ロンドン',g:5,b:14.6},
+ {t:'travel',n:'世界旅行',ic:'✈️'},
+ {t:'tour',n:'プーケット',tt:'blue',ic:'🏖️'},
+ {t:'city',n:'ロサンゼルス',g:6,b:16.4},{t:'city',n:'ニューヨーク',g:6,b:17},
+ {t:'tax',n:'国税庁',ic:'🏛️'},
+ {t:'tour',n:'ピラミッド',tt:'pink',ic:'🔺'},
+ {t:'city',n:'ドバイ',g:7,b:19.2},{t:'city',n:'東京',g:7,b:20},
+];
+const SIDES=[[1,2,4,5,6,7],[9,10,11,13,14,15],[17,18,19,21,22,23],[25,26,27,29,30,31]];
+const BCOST={v:.4,bl:1.2,h:2,lm:2};
+const BTOLL={base:.4,v:.8,bl:1.7,h:3.5,lm:3};
+const BNAME={v:'🏠 別荘',bl:'🏢 ビル',h:'🏨 ホテル',lm:'🗼 ランドマーク'};
+const PRESETS=[
+ {name:'あなた',color:'#e5484d',human:true,mark:'★'},
+ {name:'ブルー男爵',color:'#3e7bfa',mark:''},
+ {name:'ミス・ミント',color:'#22a565',mark:''},
+ {name:'Dr.ラベンダー',color:'#a35ee8',mark:''},
+];
+const RANKS=['C','B','A','A+','S','S+'];
+const ri=r=>Math.max(0,RANKS.indexOf(r));
+const ITEMS={
+ clover:{ic:'🍀',n:'四つ葉のブローチ',k:'p',lo:.08,hi:.30,sp:.35,d:'サイコロを振ったとき{v}の確率でゾロ目（奇数指定時は無効）'},
+ wallet:{ic:'👛',n:'金色のがま口',k:'v',lo:.10,hi:.60,sp:.75,d:'スタートを回るたびに給料の{v}を追加で獲得'},
+ compass:{ic:'🧭',n:'旅人のコンパス',k:'p',lo:.10,hi:.40,sp:.45,d:'通行料を払うとき{v}の確率で半額'},
+ ruby:{ic:'💍',n:'ルビーの指輪',k:'p',lo:.08,hi:.30,sp:.35,d:'通行料を受け取るとき{v}の確率で1.5倍'},
+ cloak:{ic:'🧥',n:'鉄壁のマント',k:'p',lo:.10,hi:.38,sp:.42,d:'自分の都市が買収されそうなとき{v}の確率で阻止'},
+ helmet:{ic:'⛑️',n:'職人のヘルメット',k:'p',lo:.10,hi:.38,sp:.42,d:'建物を建てるとき{v}の確率で建設費が半額'},
+ buoy:{ic:'🛟',n:'救命ブイ',k:'p',lo:.20,hi:.65,sp:.78,d:'無人島に止まったとき{v}の確率でその場で脱出'},
+ luckycard:{ic:'🎴',n:'幸運のお守り',k:'p',lo:.25,hi:.70,sp:.80,d:'悪いチャンスカードを{v}の確率で引き直す'},
+ glove:{ic:'🧤',n:'勝負師のグローブ',k:'v',lo:.03,hi:.10,sp:.12,d:'ボーナスゲームの成功率が{v}アップ'},
+ feather:{ic:'🪶',n:'栄光の羽根飾り',k:'v',lo:.10,hi:.38,sp:.42,d:'ゲーム開始時の所持金が{v}アップ'},
+ medal:{ic:'🏅',n:'初周記念メダル',k:'v',lo:1.0,hi:3.0,sp:3.4,d:'1周目でスタートに戻ったとき給料の{v}を追加で獲得'},
+ crystal:{ic:'🔮',n:'運命の水晶',k:'v',lo:.10,hi:.40,sp:.46,d:'最初のサイコロの合計×給料の{v}を獲得'},
+ rocket:{ic:'🚀',n:'ロケットブースター',k:'p',lo:.20,hi:.49,sp:.56,d:'最初のサイコロで{v}の確率で出た目の2倍進む'},
+ reverse:{ic:'⏪',n:'逆回りの懐中時計',k:'p',lo:.40,hi:.80,sp:.90,d:'最初のサイコロで{v}の確率で逆方向に進む'},
+ vip:{ic:'💳',n:'VIPパス',k:'p',lo:.27,hi:.91,sp:.92,d:'最初に止まった相手の物件の通行料を{v}の確率で免除'},
+ sign:{ic:'💹',n:'繁盛の看板',k:'v',lo:.03,hi:.12,sp:.15,d:'自分の物件の通行料が{v}アップ'},
+ landlord:{ic:'🔑',n:'大家さんの鍵',k:'v',lo:.10,hi:.50,sp:.54,d:'自分の都市に止まると建設費用の{v}を獲得'},
+ treasure:{ic:'🗺️',n:'宝の地図',k:'v',lo:.50,hi:2.0,sp:2.2,d:'無人島に止まると給料の{v}を獲得'},
+ freepass:{ic:'🎐',n:'旅の守り札',k:'p',lo:.30,hi:.85,sp:.90,d:'税金・世界旅行・オリンピック・無人島脱出の費用を{v}の確率で免除'},
+ piggy:{ic:'🐷',n:'金のぶた貯金箱',k:'v',lo:.20,hi:.55,sp:.60,d:'ボーナスゲームに勝つと報酬が{v}増える'},
+ insurance:{ic:'🧾',n:'ボーナス保険',k:'v',lo:.30,hi:1.0,sp:1.12,d:'ボーナスゲームに負けたとき参加費の{v}を回収'},
+ invite:{ic:'🎫',n:'旅の招待状',k:'p',lo:.30,hi:.80,sp:.85,d:'最初のチャンスカードが{v}の確率で旅行券になる'},
+ thief:{ic:'🎩',n:'怪盗のシルクハット',k:'v',lo:.05,hi:.17,sp:.20,d:'相手と同じマスに止まると相手の所持金の{v}を奪う'},
+ breaker:{ic:'🔨',n:'破魔のハンマー',k:'p',lo:.20,hi:.60,sp:.70,d:'相手のシールドを{v}の確率で破って攻撃を通す'},
+ bat:{ic:'🏏',n:'伝説のバット',k:'p',lo:.17,hi:1.0,sp:1.0,d:'「ぼったくり」を{v}の確率で無効化'},
+ lens:{ic:'🔭',n:'鷹の目レンズ',k:'p',lo:.10,hi:.39,sp:.43,d:'ゲージインパクト発生時、{v}の確率で狙った目がぴったり出る'},
+ firstdouble:{ic:'⌚',n:'金の懐中時計',k:'p',lo:.20,hi:.49,sp:.56,d:'最初のサイコロが{v}の確率でゾロ目'},
+ escape1:{ic:'🧭',n:'脱出の羅針盤',k:'p',lo:.30,hi:.68,sp:.78,d:'無人島で最初にサイコロを振ると{v}の確率で脱出'},
+ firstwin:{ic:'🎯',n:'必勝ハチマキ',k:'p',lo:.50,hi:.94,sp:.98,d:'ボーナスゲームの初回に{v}の確率で勝つ'},
+ healtrip:{ic:'🧳',n:'気まぐれ旅行鞄',k:'p',lo:.05,hi:.15,sp:.19,d:'相手の物件で通行料を払ったあと{v}の確率で世界旅行へ'},
+ parity:{ic:'🔢',n:'奇偶の加護',k:'n',sub:1,d:'奇数・偶数指定の使用回数+{v}'},
+ gold:{ic:'💰',n:'黄金の加護',k:'v',sub:1,d:'勝利時の獲得ゴールド+{v}'},
+ taxfree:{ic:'🧧',n:'免税の加護',k:'p',sub:1,d:'税金を{v}の確率で免除'},
+ olyfree:{ic:'🏟️',n:'開催の加護',k:'p',sub:1,d:'オリンピック開催費を{v}の確率で免除'},
+ travelfree:{ic:'🛫',n:'旅費の加護',k:'p',sub:1,d:'世界旅行の費用を{v}の確率で免除'},
+ defend:{ic:'🪖',n:'守護の加護',k:'p',sub:1,d:'相手の攻撃カードを{v}の確率で防御'},
+ angelbreak:{ic:'⚡',n:'裁きの雷',k:'p',sub:1,d:'自分のランドマークで相手が使った天使カードを{v}の確率で無効化'},
+};
+ITEMS.magnet={ic:'🧲',n:'引き寄せの磁石',k:'p',d:'ランドマークを建てたとき、{v}の確率で前後3マスの相手を引き寄せて通行料（半額）を払わせる'};
+const RTBL={
+ feather:{C:.10,B:.15,A:.21,'A+':.27,S:.38,'S+':.42},
+ vip:{C:.27,B:.47,A:.57,'A+':.67,S:.91,'S+':.92},
+ lens:{A:.17,'A+':.27,S:.32,'S+':.36},
+ thief:{A:.10,'A+':.13,S:.17,'S+':.19},
+ rocket:{A:.34,'A+':.44,S:.49,'S+':.56},
+ escape1:{'A+':.68,S:.78,'S+':.80},
+ bat:{'A+':.74,S:1.0,'S+':1.0},
+ firstwin:{'A+':.87,S:.92,'S+':.95},
+ magnet:{S:.64,'S+':.68},
+};
+const minRank=id=>RTBL[id]?RANKS.find(r=>RTBL[id][r]!=null):'C';
+const rankOK=(id,r)=>!RTBL[id]||RTBL[id][r]!=null;
+const ITEM_IDS=Object.keys(ITEMS);
+const GACHA_P=ITEM_IDS.filter(id=>!ITEMS[id].sub);
+const SUBS=[['parity',1],['gold',.2],['treasure',1.3],['taxfree',.94],['olyfree',.94],['travelfree',.94],['sign',.13],['piggy',.3],['defend',.29],['breaker',.35],['insurance',.6],['rocket',.54]];
+const SUBV=Object.fromEntries(SUBS);
+function fmtV(id,v){ return ITEMS[id]&&ITEMS[id].k==='n'?Math.round(v)+'回':Math.round(v*100)+'%'; }
+function pendVal(q){ const d=ITEMS[q.id]; if(!d||d.sub) return 0; const r=ri(q.r), lv=Math.max(1,Math.min(7,q.lv||1));
+  const T=RTBL[q.id];
+  if(T){ let rr=RANKS[r]; if(T[rr]==null) rr=minRank(q.id); if(rr==='S+') return T['S+']; const cur=T[rr]; const k=RANKS.indexOf(rr); const prev=k>0&&T[RANKS[k-1]]!=null?T[RANKS[k-1]]:cur*.8; return prev+(cur-prev)*(lv-1)/6; }
+  if(r===5) return d.sp; const t=(r*6+(lv-1))/30; return d.lo+(d.hi-d.lo)*Math.min(1,t); }
+function pendDesc(q){ return ITEMS[q.id].d.replace('{v}',fmtV(q.id,pendVal(q))); }
+function subDesc(id){ return ITEMS[id].d.replace('{v}',fmtV(id,SUBV[id])); }
+const STAT_N=['通行料割引','ミニゲーム勝利','特殊費用割引','黄金フォーチュン','建設費用割引','ゲージインパクト','買収費用割引'];
+const CAP={C:10,B:15,A:20,'A+':25,S:28,'S+':30};
+const SLOTS={C:1,B:1,A:2,'A+':3,S:4,'S+':4};
+const CLS_COL={C:'#9aa0ae',B:'#5bc0eb',A:'#3fae5a','A+':'#e3a21a',S:'#e5484d','S+':'#a35ee8'};
+const CHARS={
+ piyo:{ic:'🐣',n:'新人ピヨ',cls:'C',st:[30,40,30,40,30,48,30]},
+ toto:{ic:'🛡️',n:'見習い騎士トト',cls:'C',st:[34,36,32,38,36,46,34]},
+ mina:{ic:'🎒',n:'旅人ミナ',cls:'B',st:[38,45,48,52,38,54,40]},
+ post:{ic:'📮',n:'郵便屋ポスト',cls:'B',st:[42,44,40,46,42,52,44]},
+ popo:{ic:'🧑‍🍳',n:'見習いシェフ・ポポ',cls:'A',st:[42,52,35,48,46,60,45]},
+ neji:{ic:'🔧',n:'発明家ネジ',cls:'A',st:[40,48,44,50,52,58,42]},
+ hayate:{ic:'🥷',n:'忍者ハヤテ',cls:'A+',st:[45,64,38,50,45,66,52]},
+ luca:{ic:'🃏',n:'奇術師ルカ',cls:'A+',st:[48,60,42,62,40,62,50]},
+ chloe:{ic:'🕵️',n:'名探偵クロエ',cls:'S',st:[58,50,40,58,50,70,58],sig:'lens'},
+ gold:{ic:'🤵',n:'大富豪ゴルド',cls:'S',st:[40,48,52,45,68,66,66],sig:'feather'},
+ seira:{ic:'🎤',n:'歌姫セイラ',cls:'S',st:[50,62,44,56,48,68,56],sig:'piggy'},
+ mira:{ic:'🔮',n:'占い師ミラ',cls:'S',st:[46,52,60,72,44,66,50],sig:'luckycard'},
+ leo:{ic:'💼',n:'交渉人レオ',cls:'S',st:[66,46,44,48,46,64,68],sig:'vip'},
+ kanna:{ic:'🏗️',n:'建築家カンナ',cls:'S',st:[38,50,46,58,72,62,60],sig:'helmet'},
+ sora:{ic:'🧑‍✈️',n:'機長ソラ',cls:'S+',st:[56,60,48,64,58,78,62],sk:{id:'lens',v:.33},sig:'rocket'},
+ elena:{ic:'👸',n:'女王エレナ',cls:'S+',st:[60,62,44,62,60,76,66],sk:{id:'sign',v:.15},sig:'sign'},
+ jin:{ic:'🦹',n:'怪盗ジン',cls:'S+',st:[54,64,46,60,54,77,64],sk:{id:'thief',v:.15},sig:'thief'},
+ noel:{ic:'😇',n:'天使ノエル',cls:'S+',st:[55,60,50,68,56,76,64],sk:{id:'angelbreak',v:.5},sig:'breaker'},
+ gaia:{ic:'🏞️',n:'大地主ガイア',cls:'S+',st:[52,58,46,64,66,75,60],sk:{id:'landlord',v:.45},sig:'landlord'},
+};
+const CHAR_IDS=Object.keys(CHARS);
+const statAt=(id,k,lv)=>{ const c=CHARS[id]; const cap=CAP[c.cls]; return Math.round(c.st[k]*(.72+.28*((Math.min(lv,cap)-1)/(cap-1)))); };
+const cst=(p,k)=>p&&CHARS[p.ch]?statAt(p.ch,k,p.clv||1):40;
+function skillDesc(id){ const s=CHARS[id].sk; return s?ITEMS[s.id].d.replace('{v}',fmtV(s.id,s.v)):''; }
+function charDesc(id,lv){ const c=CHARS[id]; if(!c) return ''; lv=lv||1; return `クラス${c.cls}・Lv${lv}/${CAP[c.cls]}｜`+STAT_N.map((n,k)=>`${n}${statAt(id,k,lv)}`).join('・')+(c.sk?`｜固有スキル：${skillDesc(id)}`:''); }
+function popProc(p,ic,name,text){
+  pushFx('pop',{p:p.id,ic,n:name,t:text});
+  const e=$('#itempop'); e.innerHTML=`<span class="ii">${ic}</span><div><b>${name}</b><small style="color:${p.color}">${p.name}</small><span>${text}</span></div>`;
+  e.classList.remove('show'); e.offsetWidth; e.classList.add('show');
+}
+function charProc(p,k,chance){ if(!CHARS[p.ch]) return false; if(Math.random()<chance){ const c=CHARS[p.ch]; popProc(p,c.ic,c.n,STAT_N[k]+' 発動！'); log(`${c.ic} ${p.name}：<b>${STAT_N[k]}</b> 発動`,p); return true; } return false; }
+function pv(p,id){
+  if(!p) return 0; let v=0;
+  for(const q of (p.pends||[])){ if(q.id===id) v=Math.max(v,pendVal(q)); if(q.sub===id) v=Math.max(v,SUBV[id]||0); }
+  const c=CHARS[p.ch]; if(c&&c.sk&&c.sk.id===id) v=Math.max(v,c.sk.v);
+  return v;
+}
+function itemProc(p,id){
+  const d=ITEMS[id]; if(!d) return;
+  const c=CHARS[p.ch]; const fromChar=c&&c.sk&&c.sk.id===id&&!(p.pends||[]).some(q=>q.id===id||q.sub===id);
+  if(fromChar){ popProc(p,c.ic,c.n,'固有スキル発動！'); log(`${c.ic} ${p.name}：固有スキル「${d.n}」発動`,p); }
+  else { popProc(p,d.ic,d.n,'効果が発動！'); log(`${d.ic} <b>${d.n}</b> の効果が発動（${p.name}）`,p); }
+}
+function procs(p,id){ const v=pv(p,id); if(v>0&&Math.random()<v){ itemProc(p,id); return true; } return false; }
+async function feeFree(p,label){
+  const sp={'税金':'taxfree','オリンピック開催費':'olyfree','旅行費用':'travelfree'}[label];
+  if(sp&&procs(p,sp)){ log(`${p.name}：${label}が免除`,p); return true; }
+  if(procs(p,'freepass')){ log(`🎐 ${p.name}：${label}が免除`,p); return true; }
+  if(charProc(p,2,cst(p,2)/150)){ log(`${p.name}：${label}が免除`,p); return true; }
+  return false;
+}
+const DICE={
+ normal:{ic:'🎲',n:'ノーマルダイス',d:'標準のサイコロ',price:0},
+ star:{ic:'⭐',n:'スターダイス',d:'ゲージインパクト発生時、40%の確率で狙った目がぴったり出る',price:5000},
+ twin:{ic:'💠',n:'ツインダイス',d:'ゾロ目が少し出やすい（奇数指定時は無効）',price:3000},
+};
+const DICE_IDS=Object.keys(DICE);
+const startMoney=p=>r1(START_MONEY*(1+pv(p,'feather')));
+function pendChip(q){ const d=ITEMS[q.id]; return `<span class="pchip" style="--rc:${CLS_COL[q.r]}" title="${d.n}：${pendDesc(q)}${q.sub?'／サブ：'+subDesc(q.sub):''}">${d.ic}<b>${q.r}</b></span>`; }
+
+const CARD_INFO={angel:['😇 天使カード','通行料を1回だけ無料にする'],discount:['🏷️ 割引カード','通行料を1回だけ半額にする'],
+  shield:['🛡️ シールド','攻撃カードを1回防ぐ'],escape:['🔑 脱出カード','無人島からすぐに脱出できる']};
+
+let cells=[],players=[],round=1,turnIdx=0,gameOver=false,gameId=0,picking=null,rollResolver=null,nPlayers=4;
+let olyCity=null,olyMul=1,olyCount=0,parity='',parLeft=3;
+const cellEls=[];
+const cur=()=>players[turnIdx];
+let online=null, turnRunning=false, lastSeq=0, started=false, fxSeq=0, fxList=[], lastFxSeen=0, diceId=0, lastDiceId=0, lastDice=[1,1], myTurnKey='', syncTimer=null, syncing=false, syncDirty=false, winnerId=null, winReason='', resultShown=false;
+const amWriter=()=>!!online&&turnRunning;
+const isMe=p=>!!p&&(online?p.uid===online.uid:!!p.human);
+function pushFx(k,d){ if(amWriter()){ fxList.push({id:++fxSeq,k,d}); if(fxList.length>20) fxList.shift(); } }
+const D=ms=>($('#fast').checked&&cur()&&!cur().human)?ms*.35:ms;
+
+/* ---------- helpers ---------- */
+function rc(i){ if(i<=8) return [9,9-i]; if(i<=16) return [9-(i-8),1]; if(i<=24) return [1,1+(i-16)]; return [1+(i-24),9]; }
+const isProp=c=>c.t==='city'||c.t==='tour';
+function colorMono(id,g){ return id!=null&&cells.filter(c=>c.t==='city'&&c.g===g).every(c=>c.owner===id); }
+function toll(i){
+  const c=cells[i]; let t;
+  if(c.t==='city'){
+    t=c.b*(BTOLL.base+(c.v?BTOLL.v:0)+(c.bl?BTOLL.bl:0)+(c.h?BTOLL.h:0)+(c.lm?BTOLL.lm:0));
+    if(colorMono(c.owner,c.g)) t*=2;
+    if(c.fest) t*=2;
+  } else if(c.tt==='blue'){
+    const k=cells.filter(x=>x.tt==='blue'&&x.owner===c.owner).length; t=TOUR_TOLL*2**(Math.max(1,k)-1);
+  } else { t=TOUR_TOLL*2**(Math.max(1,Math.min(c.visits,3))-1); }
+  if(olyCity===i) t*=olyMul;
+  if(c.owner!=null&&players[c.owner]) t*=1+pv(players[c.owner],'sign');
+  return r1(t);
+}
+function propValue(p){ return cells.reduce((s,c)=>s+(c.owner===p.id?c.inv:0),0); }
+function assets(p){ return p.money+propValue(p); }
+function props(p){ return cells.map((c,i)=>i).filter(i=>cells[i].owner===p.id); }
+function clearProp(c){ c.owner=null;c.v=c.bl=c.h=c.lm=false;c.inv=0;c.visits=0; const i=cells.indexOf(c); if(olyCity===i){olyCity=null;olyMul=1;} }
+
+/* ---------- render ---------- */
+function buildBoard(){
+  const b=$('#board');
+  DEF.forEach((d,i)=>{
+    const el=document.createElement('div'); const [r,c]=rc(i);
+    el.style.gridRow=r; el.style.gridColumn=c;
+    el.className='cell '+(d.t==='city'?'city':d.t==='tour'?'tour':(i%8===0?'corner':'special'));
+    if(d.t==='travel') el.classList.add('nopick');
+    if(d.t==='city') el.innerHTML=`<div class="band" style="background:${GCOL[d.g]}"></div><div class="nm">${d.n}</div><div class="pr"></div><div class="bd"></div><span class="flag"></span><div class="oly" hidden></div><div class="tk"></div>`;
+    else if(d.t==='tour') el.innerHTML=`<div class="band" style="background:${TCOL[d.tt]}"></div><div class="tic">${d.ic}</div><div class="nm">${d.n}</div><div class="pr"></div><div class="oly" hidden></div><div class="tk"></div>`;
+    else el.innerHTML=`<div class="ic">${d.ic}</div><div class="nm">${d.n}</div><div class="tk"></div>`;
+    el.onclick=()=>onCellClick(i);
+    b.appendChild(el); cellEls[i]=el;
+  });
+}
+const warned=new Set();
+const monoSeen=new Set();
+function fireworks(html){
+  const c=$('#center'); const box=document.createElement('div'); box.className='fw';
+  const cols=['#ffd56b','#ff7b9c','#7be0ff','#9dff8a','#ffffff','#f5b630'];
+  for(let k=0;k<3;k++){ const ox=20+k*30+Math.random()*10, oy=25+Math.random()*25;
+    for(let j=0;j<18;j++){ const sp=document.createElement('i'); const an=j/18*Math.PI*2, d=40+Math.random()*30;
+      sp.style.cssText=`left:${ox}%;top:${oy}%;background:${cols[(j+k)%cols.length]};--dx:${Math.cos(an)*d}px;--dy:${Math.sin(an)*d}px;animation-delay:${k*.25}s`; box.appendChild(sp); } }
+  const t=document.createElement('div'); t.className='fwtext'; t.innerHTML=html; box.appendChild(t);
+  c.appendChild(box); setTimeout(()=>box.remove(),2600);
+}
+function monoCheck(){
+  for(const p of players){ if(!p.alive) continue;
+    for(let g=0;g<8;g++){ const key=p.id+'-'+g, has=colorMono(p.id,g);
+      if(has&&!monoSeen.has(key)){ monoSeen.add(key); const names=cells.filter(c=>c.t==='city'&&c.g===g).map(c=>c.n).join('・');
+        fireworks(`<b>🎆 カラー独占！</b><span style="color:${GCOL[g]}">■</span> ${names}<small>${p.name}・通行料2倍</small>`);
+        log(`🎆 <b>カラー独占</b>：${p.name} が ${names} を独占（通行料2倍）`,p); }
+      else if(!has&&monoSeen.has(key)) monoSeen.delete(key); } }
+}
+function showWarn(html){ const w=$('#warn'); w.innerHTML=html; w.classList.remove('show'); w.offsetWidth; w.classList.add('show'); }
+function warnCheck(){
+  for(const p of players){ if(!p.alive) continue;
+    const sig=props(p).join(',');
+    const hit=[];
+    const monos=[...Array(8).keys()].filter(g=>colorMono(p.id,g)).length;
+    const nearG=[...Array(8).keys()].some(g=>!colorMono(p.id,g)&&cells.filter(c=>c.t==='city'&&c.g===g&&c.owner!==p.id).length===1);
+    if(monos>=2&&nearG) hit.push('トリプル独占');
+    if(SIDES.some(sd=>sd.filter(i=>cells[i].owner!==p.id).length===1)) hit.push('ライン独占');
+    if(cells.filter(c=>c.t==='tour'&&c.owner!==p.id).length===1) hit.push('観光地独占');
+    for(const h of hit){ const key=p.id+h+sig; if(warned.has(key)) continue; warned.add(key);
+      showWarn(`<b>⚠️ ${h}</b><span>WARNING!</span><small style="color:${p.color}">${p.name} があと1マス</small>`); log(`⚠️ <b>${h} WARNING</b>：${p.name} があと1マスで勝利`,p); }
+  }
+}
+function render(){
+  if(amWriter()) scheduleSync();
+  $('#skipBtn').hidden=!(online&&online.host&&started&&!gameOver&&!turnRunning&&!isMe(cur()));
+  cells.forEach((c,i)=>{
+    const el=cellEls[i];
+    if(isProp(c)){
+      const o=c.owner!=null?players[c.owner]:null;
+      el.classList.toggle('owned',!!o);
+      el.classList.toggle('mono',!!o&&c.t==='city'&&colorMono(c.owner,c.g));
+      if(o) el.style.setProperty('--own',o.color);
+      el.querySelector('.pr').textContent=o?'💰'+fmt(toll(i)):fmt(c.t==='city'?c.b:TOUR_PRICE);
+      if(c.t==='city'){
+        el.querySelector('.bd').textContent=c.lm?'🗼':(c.v?'🏠':'')+(c.bl?'🏢':'')+(c.h?'🏨':'');
+        el.querySelector('.flag').textContent=c.fest?'🎉':'';
+      }
+      const ol=el.querySelector('.oly'); ol.hidden=olyCity!==i; ol.textContent=`🏅×${olyMul}`;
+    }
+    el.querySelector('.tk').innerHTML=players.filter(p=>p.alive&&p.pos===i)
+      .map(p=>`<span class="tok"><i class="pawn ${p===cur()&&!gameOver?'cur':''}" style="--pc:${p.color}">${isMe(p)?'★':''}</i></span>`).join('');
+  });
+  const ranked=[...players].filter(x=>x.alive).sort((a,b)=>assets(b)-assets(a));
+  $('#players').innerHTML=players.map((p,i)=>`
+    <div class="pc ${i===turnIdx&&!gameOver?'active':''} ${p.alive?'':'dead'}" style="--pc:${p.color}">
+      <div class="pc-top"><span class="dot"></span><b>${p.name}</b>${isMe(p)?'<span class="you">YOU</span>':''}${p.alive?`<span class="rk r${ranked.indexOf(p)+1}">${ranked.indexOf(p)+1}位</span>`:''}</div>
+      <div class="pc-money">${p.alive?fmt(p.money):'破産'}</div>
+      <div class="pc-sub">総資産 ${fmt(assets(p))}・物件 ${props(p).length}・${p.laps+1}周目</div>
+      <div class="pc-item" title="${CHARS[p.ch]?charDesc(p.ch,p.clv):''}">${CHARS[p.ch]?`<span class="chb">${CHARS[p.ch].ic} ${CHARS[p.ch].n} <i>${CHARS[p.ch].cls}</i> <small>Lv${p.clv||1}</small></span><br>`:''}${p.bt?'💢':''}${(p.pends||[]).map(pendChip).join('')}${p.dk&&DICE[p.dk]&&p.dk!=='normal'?` <small>${DICE[p.dk].ic}${DICE[p.dk].n}</small>`:''}</div>
+      <div class="pc-card">${p.card?CARD_INFO[p.card][0]:'<span style="color:var(--muted);font-weight:400">カードなし</span>'}</div>
+      <div class="pc-badges">${p.island?'🌴'+p.island:''}${p.travel?'✈️':''}</div>
+    </div>`).join('');
+  $('#round').textContent=`ターン ${round}`;
+  $('#potbox').textContent=fmt(players.filter(x=>x.alive).reduce((s,x)=>s+assets(x),0));
+  if(!gameOver&&cells.length&&players.some(x=>x.pos!==0||props(x).length)){ monoCheck(); warnCheck(); }
+  const p=cur(); if(p) $('#turnby').innerHTML=`<span class="dot" style="background:${p.color}"></span>${p.name}のターン`;
+  $('#parleft').textContent=`残り${parLeft}回`;
+  document.querySelectorAll('#par button').forEach(b=>{ b.classList.toggle('on',b.dataset.p===parity); if(b.dataset.p) b.disabled=parLeft<=0; });
+}
+function showDice(a,b){
+  const P={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+  const ds=document.querySelectorAll('.die');
+  [a,b].forEach((v,k)=>{ ds[k].className='die'+(v===1?' d1':''); ds[k].innerHTML=Array.from({length:9},(_,j)=>`<i class="${P[v].includes(j)?'on':''}"></i>`).join(''); });
+  $('#dice').classList.toggle('doubles',a===b);
+}
+function setMsg(t){ $('#msg').innerHTML=t; }
+let logList=[];
+function renderLog(){ $('#log').innerHTML=logList.slice(-90).reverse().map(l=>`<div style="--c:${l.c||'#ccc'}">${l.t}</div>`).join(''); }
+function log(t,p){ if(online&&!amWriter()) return; logList.push({t,c:p?p.color:''}); if(logList.length>120) logList.splice(0,logList.length-120); renderLog(); }
+async function toast(html,ms=1100){ pushFx('toast',{h:html,ms}); const t=$('#toast'); t.innerHTML=html; t.classList.add('show'); await sleep(D(ms)); t.classList.remove('show'); await sleep(110); }
+
+function floatAt(i,text,bg){
+  pushFx('float',{i,t:text,b:bg||''});
+  const el=cellEls[i], b=$('#stage'); if(!el) return;
+  const br=b.getBoundingClientRect(), r=el.getBoundingClientRect();
+  const f=document.createElement('div'); f.className='float'; f.textContent=text; f.style.background=bg||'#e5484d';
+  f.style.left=(r.left-br.left+r.width/2)+'px'; f.style.top=(r.top-br.top+r.height/2)+'px';
+  b.appendChild(f); setTimeout(()=>f.remove(),1700);
+}
+function bigNum(n){ const e=$('#bignum'); e.textContent=n; e.classList.remove('show'); e.offsetWidth; e.classList.add('show'); }
+async function showCert(p,c,cost,from){
+  pushFx('cert',{p:p.id,c:cells.indexOf(c),cost,f:from.id});
+  const el=$('#cert');
+  el.innerHTML=`<div class="certcard"><div class="seal">⚔️</div><h3>買収証書</h3>
+    <div class="row">下記の物件の所有権を移転したことを証する</div>
+    <div class="cn">${c.n}</div>
+    <div class="row">${c.lm?'🗼':(c.v?'🏠':'')+(c.bl?'🏢':'')+(c.h?'🏨':'')}　買収額 <b>${fmt(cost)}</b></div>
+    <div class="row">旧所有者：${from.name}</div>
+    <div class="sign" style="color:${p.color}">${p.name}</div></div>`;
+  el.hidden=false; await sleep(D(1500)); el.hidden=true;
+}
+async function sellDialog(p,amount){
+  const owned=props(p).sort((a,b)=>cells[a].inv-cells[b].inv);
+  const rows=owned.map(i=>{ const c=cells[i]; return `<label class="sellrow"><input type="checkbox" data-i="${i}" data-v="${r1(c.inv*.5)}">${c.ic&&c.t==='tour'?c.ic:'🏙️'} ${c.n}${c.t==='city'?' '+(c.lm?'🗼':(c.v?'🏠':'')+(c.bl?'🏢':'')+(c.h?'🏨':'')):''}<span class="c">売却 ${fmt(c.inv*.5)}</span></label>`; }).join('');
+  const body=`<div class="shortbox"><span>足りない金額</span><span class="neg" id="sshort"></span><span>売却後の残り</span><span id="sleft"></span></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">売却額は投資額の50%です</div>${rows}
+    <button class="btn ghost small" id="sauto" style="margin-top:4px">🤖 自動選択</button>`;
+  const upd=()=>{ let v=0; document.querySelectorAll('#m-body input[data-i]:checked').forEach(e=>v+=+e.dataset.v); const left=r1(p.money+v-amount);
+    $('#sshort').textContent=fmt(Math.max(0,amount-p.money)); $('#sleft').textContent=fmt(left); $('#sleft').className=left>=0?'pos':'neg'; $('#sok').disabled=left<0; };
+  return ask('💸 売却する物件を選択',body,[{label:'破産する',value:'bankrupt'},{label:'売却完了',primary:true,id:'sok',value:()=>[...document.querySelectorAll('#m-body input[data-i]:checked')].map(e=>+e.dataset.i)}],false,()=>{
+    document.querySelectorAll('#m-body input').forEach(e=>e.onchange=upd);
+    $('#sauto').onclick=()=>{ let v=p.money; document.querySelectorAll('#m-body input[data-i]').forEach(e=>{ e.checked=false; }); for(const e of document.querySelectorAll('#m-body input[data-i]')){ if(v>=amount) break; e.checked=true; v+=+e.dataset.v; } upd(); };
+    upd(); });
+}
+
+/* ---------- dialogs ---------- */
+function ask(title,body,buttons,list=false,onShow){
+  return new Promise(res=>{
+    $('#m-title').textContent=title; $('#m-body').innerHTML=body;
+    const bx=$('#m-btns'); bx.innerHTML=''; bx.classList.toggle('list',list);
+    buttons.forEach(b=>{ const e=document.createElement('button'); e.className='btn '+(b.primary?'primary':'ghost')+(list?' small':''); e.innerHTML=b.label; if(b.id) e.id=b.id;
+      e.onclick=()=>{ const v=typeof b.value==='function'?b.value():b.value; $('#modal').hidden=true; res(v); }; bx.appendChild(e); });
+    $('#modal').hidden=false; if(onShow) onShow();
+  });
+}
+function propInfo(i){
+  const c=cells[i]; const o=c.owner!=null?players[c.owner]:null;
+  if(c.t==='tour'){
+    return `<div class="ci-band" style="background:${TCOL[c.tt]}"></div>観光地・価格 <b>${fmt(TOUR_PRICE)}</b>（建設不可・買収不可）<br>
+      ${c.tt==='blue'?'水色の観光地は<b>所有数</b>が増えるほど通行料が倍増（8万→16万→32万）':'ピンクの観光地は<b>誰かが止まるたび</b>通行料が倍増（最大3段階）'}<br>
+      所有者：<b style="color:${o?o.color:'inherit'}">${o?o.name:'なし'}</b>${o?`　現在の通行料 <b>${fmt(toll(i))}</b>`:''}`;
+  }
+  const grp=cells.filter(x=>x.t==='city'&&x.g===c.g).map(x=>x.n).join('・');
+  const rows=[['土地',BTOLL.base],['🏠 別荘',BTOLL.v],['🏢 ビル',BTOLL.bl],['🏨 ホテル',BTOLL.h],['🗼 ランドマーク',BTOLL.lm]]
+    .map(([n,k],j)=>`<tr><td>${n}</td><td>${j?fmt(c.b*[0,BCOST.v,BCOST.bl,BCOST.h,BCOST.lm][j]):fmt(c.b)}</td><td>+${fmt(c.b*k)}</td></tr>`).join('');
+  return `<div class="ci-band" style="background:${GCOL[c.g]}"></div>グループ：${grp}${c.fest?'<br>🎉 <b>フェスティバル都市</b>（通行料2倍）':''}<br>
+    所有者：<b style="color:${o?o.color:'inherit'}">${o?o.name:'なし'}</b>${o?`　通行料 <b>${fmt(toll(i))}</b>`:''}
+    ${o&&!c.lm?`<br>買収価格：<b>${fmt(c.inv*2)}</b>`:''}
+    <table class="tt"><tr style="color:var(--muted)"><td>建物</td><td>建設費</td><td>通行料</td></tr>${rows}</table>`;
+}
+const SPECIAL_INFO={start:`通過で給料 ${SALARY}万。ぴったり止まると所有都市の1つに建設できる。`,chance:'チャンスカードを引く。保管カード・攻撃カード・命令カードがある。',
+  island:`3ターン足止め。ゾロ目／${ISLAND_FEE}万の支払い／脱出カードで脱出。`,travel:`次のターン、${TRAVEL_FEE}万払って好きなマスへ移動できる。`,
+  tax:'所有物件の価値の10%を納税。',olympic:`${OLY_FEE}万払って自分の物件で開催。開催のたびに倍率アップ（最大×5）。`,roulette:'ルーレットで「誰に」「何が起きるか」が決まる。給料・税金・ワープ・無人島・募金など。',bonus:'PKかコイントスに参加費を払って挑戦。成功するたびに倍率x2→x4→x8、STOPでいつでも受け取れる。'};
+function onCellClick(i){
+  if(picking){ if(picking.ok(i)) picking.done(i); return; }
+  if(!$('#modal').hidden||!$('#mini').hidden) return;
+  const c=cells[i];
+  $('#i-title').textContent=(c.ic||'🏙️')+' '+c.n;
+  $('#i-body').innerHTML=isProp(c)?propInfo(i):SPECIAL_INFO[c.t];
+  $('#info').hidden=false;
+}
+$('#i-close').onclick=()=>$('#info').hidden=true;
+function pickCell(msg,ok){
+  return new Promise(res=>{ document.body.classList.add('picking'); setMsg(msg); $('#roll').disabled=true; $('#roll').textContent='マスを選択中';
+    picking={ok,done:i=>{ picking=null; document.body.classList.remove('picking'); res(i); }}; });
+}
+
+/* ---------- dice ---------- */
+let gaugeVal=.5,gaugeRAF=null;
+function startGauge(){ const t0=performance.now(); const f=now=>{ const ph=((now-t0)/850)%2; gaugeVal=ph<1?ph:2-ph; $('#gfill').style.width=(gaugeVal*100)+'%'; gaugeRAF=requestAnimationFrame(f); }; gaugeRAF=requestAnimationFrame(f); }
+function stopGauge(){ cancelAnimationFrame(gaugeRAF); gaugeRAF=null; return gaugeVal; }
+const ZONES=[[2,5],[4,7],[6,8],[7,10],[9,12]];
+const COMBO=n=>6-Math.abs(7-n);
+function pairFor(sum,par){ const ps=[]; for(let a=1;a<=6;a++){ const b=sum-a; if(b>=1&&b<=6) ps.push([a,b]); } return ps[rand(ps.length)]; }
+let lastImpact='';
+function genDice(g,par,dk,impactRate,prec){
+  lastImpact='';
+  const okSum=n=>!par||(par==='odd')===(n%2===1);
+  if(dk==='twin'&&par!=='odd'&&Math.random()<.1){ const k=Math.max(1,Math.min(6,Math.round(1+g*5))); lastImpact='💠 ツインダイス'; return [k,k]; }
+  if(Math.random()<impactRate){
+    const exact=Math.round(2+g*10);
+    if(Math.random()<(prec||0)&&okSum(exact)){ lastImpact='⭐ 精度発動！ ねらい通り'; return pairFor(exact); }
+    const z=ZONES[Math.min(4,Math.floor(g*5))]; const sums=[]; for(let n=z[0];n<=z[1];n++) if(okSum(n)) sums.push(n);
+    if(sums.length){ let tot=sums.reduce((a,n)=>a+COMBO(n),0), x=Math.random()*tot; for(const n of sums){ x-=COMBO(n); if(x<=0){ lastImpact='⚡ ゲージインパクト！'; return pairFor(n); } } }
+  }
+  const all=[]; for(let a=1;a<=6;a++) for(let b=1;b<=6;b++) if(okSum(a+b)) all.push([a,b]);
+  return all[rand(all.length)];
+}
+document.querySelectorAll('#par button').forEach(b=>b.onclick=()=>{ if(b.disabled) return; parity=b.dataset.p; render(); });
+function waitRoll(label){ const b=$('#roll'); b.disabled=false; b.textContent=label||'サイコロを振る'; setMsg('ゲージを狙ってボタンを押そう'); $('#par').style.visibility='visible'; startGauge(); return new Promise(r=>rollResolver=r); }
+$('#roll').onclick=()=>{ if(rollResolver){ const r=rollResolver; rollResolver=null; $('#roll').disabled=true; r(stopGauge()); } };
+document.addEventListener('keydown',e=>{ if((e.code==='Space'||e.code==='Enter')&&rollResolver&&$('#modal').hidden){ e.preventDefault(); $('#roll').click(); } });
+
+async function rollDice(p,label){
+  let g, par='';
+  if(p.human){ g=await waitRoll(label); if(parity&&parLeft>0){ par=parity; parLeft--; parity=''; } }
+  else { $('#par').style.visibility='hidden'; $('#roll').disabled=true; $('#roll').textContent=`${p.name}が考え中…`; g=cpuGauge(p); $('#gfill').style.width=g*100+'%'; await sleep(D(450)); }
+  for(let k=0;k<8;k++){ showDice(1+rand(6),1+rand(6)); await sleep(D(55)); }
+  let [a,b]=genDice(g,par,p.dk,cst(p,5)/100,Math.max(p.dk==='star'?.4:0,pv(p,'lens')));
+  if(!p.fr&&par!=='odd'&&a!==b&&procs(p,'firstdouble')){ const k=Math.max(1,Math.min(6,Math.round((a+b)/2))); a=b=k; }
+  if(par!=='odd'&&a!==b&&procs(p,'clover')){ const k=Math.max(1,Math.min(6,Math.round((a+b)/2))); a=b=k; }
+  diceId++; lastDice=[a,b]; showDice(a,b); bigNum(a+b);
+  setMsg(`${lastImpact?lastImpact+'　':''}🎲 ${a} + ${b} = <b>${a+b}</b>${a===b?'　ゾロ目！':''}${par?`（${par==='odd'?'奇数':'偶数'}指定）`:''}`);
+  render(); await sleep(D(350));
+  return [a,b];
+}
+async function moveSteps(p,n,ms=150){
+  for(let k=0;k<n;k++){
+    p.pos=(p.pos+1)%N;
+    if(p.pos===0){ p.laps++; let sal=r1(SALARY*(1+pv(p,'wallet'))); if(p.laps===1&&pv(p,'medal')>0){ sal=r1(sal+SALARY*pv(p,'medal')); itemProc(p,'medal'); } p.money+=sal; floatAt(0,'+'+fmt(sal),'#2fae6a'); log(`🏁 ${p.name} がスタート通過：給料 +${fmt(sal)}`,p); }
+    render(); await sleep(D(ms));
+  }
+}
+async function moveBack(p,n,ms=150){ for(let k=0;k<n;k++){ p.pos=(p.pos-1+N)%N; render(); await sleep(D(ms)); } }
+async function thiefCheck(p){
+  const tv=pv(p,'thief'); if(!tv) return;
+  for(const o of players){ if(o===p||!o.alive||o.pos!==p.pos||o.money<=0) continue;
+    const v=r1(o.money*tv); o.money=r1(o.money-v); p.money=r1(p.money+v); itemProc(p,'thief');
+    log(`🎩 ${p.name} が ${o.name} から ${fmt(v)} を奪った`,p); floatAt(p.pos,'+'+fmt(v),p.color); render(); await toast(`<b>🎩 怪盗参上！</b>${p.name} が ${o.name} から ${fmt(v)} を奪った`,1000); }
+}
+async function teleport(p,to,ms=60){ await moveSteps(p,(to-p.pos+N)%N,ms); }
+
+/* ---------- money ---------- */
+async function pay(p,amount,to){
+  if(gameOver||!p.alive) return false;
+  amount=r1(amount);
+  if(p.money<amount){
+    const owned=props(p).map(i=>cells[i]).sort((a,b)=>a.inv-b.inv);
+    const potential=owned.reduce((s,c)=>s+c.inv*.5,0);
+    if(p.money+potential>=amount){
+      let list=owned;
+      if(isMe(p)){ const sel=await sellDialog(p,amount); list=sel==='bankrupt'?[]:sel.map(i=>cells[i]); }
+      for(const c of list){ if(p.money>=amount&&!isMe(p)) break; const v=r1(c.inv*.5); p.money=r1(p.money+v); log(`🔻 ${p.name} は ${c.n} を ${fmt(v)} で売却`,p); clearProp(c); }
+    } else if(isMe(p)&&owned.length){ await ask('💥 資金不足',`すべての物件を売却しても ${fmt(amount)} を払えません。`,[{label:'破産する',value:1,primary:true}]); }
+  }
+  if(p.money>=amount){ p.money=r1(p.money-amount); if(to) to.money=r1(to.money+amount); render(); return true; }
+  if(to) to.money=r1(to.money+p.money);
+  p.money=0; p.alive=false;
+  cells.forEach(c=>{ if(c.owner===p.id) clearProp(c); });
+  log(`💥 <b>${p.name} は破産しました</b>`,p); render();
+  await toast(`<b>💥 破産</b>${p.name} が脱落！`,1300);
+  const alive=players.filter(x=>x.alive);
+  if(alive.length===1) endGame(alive[0],'ほかのプレイヤーが全員破産');
+  else if(isMe(p)&&!online){ const watch=await ask('💥 あなたは破産しました',`残り ${alive.length} 人で勝負が続きます。最後まで観戦しますか？`,[{label:'結果を見る',value:false},{label:'観戦を続ける',value:true,primary:true}]);
+    if(!watch) endGame(alive.sort((a,b)=>assets(b)-assets(a))[0],'あなたが破産したため途中終了'); }
+  return false;
+}
+function checkWin(p){
+  if(gameOver||!p.alive) return false;
+  let g=0; for(let i=0;i<8;i++) if(colorMono(p.id,i)) g++;
+  if(g>=3){ endGame(p,'トリプル独占達成！',2); return true; }
+  if(SIDES.some(s=>s.every(i=>cells[i].owner===p.id))){ endGame(p,'ライン独占達成！',3); return true; }
+  if(cells.filter(c=>c.t==='tour').every(c=>c.owner===p.id)){ endGame(p,'観光地独占達成！',5); return true; }
+  return false;
+}
+
+/* ---------- building ---------- */
+function cpuBuild(p,c,opts){ // opts: array of keys available
+  const sel=[]; let cost=0;
+  const reserve=[25,45,70];
+  for(const [j,k] of opts.entries()){ const cc=r1(c.b*BCOST[k]); if(p.money-cost-cc>=reserve[Math.min(j,2)]+rand(15)){ sel.push(k); cost+=cc; } else break; }
+  return sel;
+}
+async function buildDialog(p,i,isNew){
+  const c=cells[i];
+  const opts=['v','bl','h'].filter(k=>!c[k]);
+  const landCost=isNew?c.b:0;
+  if(!isNew&&!opts.length) return landmarkOffer(p,i);
+  let sel;
+  if(p.human){
+    const rows=opts.map(k=>{ const lock=k==='h'&&p.laps<1; return `<label class="bopt ${lock?'lock':''}"><input type="checkbox" data-k="${k}" data-c="${r1(c.b*BCOST[k])}" ${lock?'disabled':''} ${!lock&&k==='v'?'checked':''}>${BNAME[k]}${lock?'<small>（2周目から）</small>':''}<span class="c">${fmt(c.b*BCOST[k])}</span></label>`; }).join('');
+    const body=`<div class="ci-band" style="background:${GCOL[c.g]}"></div>${isNew?`<label class="bopt lock"><input type="checkbox" checked disabled>📜 土地<span class="c">${fmt(landCost)}</span></label>`:''}${rows}
+      <div class="total" id="btot"></div><div style="font-size:12px;color:var(--muted)">所持金 ${fmt(p.money)}</div>`;
+    const upd=()=>{ let t=landCost; document.querySelectorAll('#m-body input[data-k]:checked').forEach(e=>t+=+e.dataset.c); t=r1(t);
+      const over=t>p.money; $('#btot').className='total'+(over?' over':''); $('#btot').innerHTML=`<span>合計</span><span>${fmt(t)}${over?'（不足）':''}</span>`; $('#bok').disabled=over||(!isNew&&t===0); };
+    sel=await ask(isNew?`🏙️ ${c.n} に投資しますか？`:`🏗️ ${c.n} に建設しますか？`,body,
+      [{label:'見送る',value:null},{label:isNew?'購入する':'建設する',primary:true,id:'bok',value:()=>[...document.querySelectorAll('#m-body input[data-k]:checked')].map(e=>e.dataset.k)}],false,
+      ()=>{ document.querySelectorAll('#m-body input').forEach(e=>e.onchange=upd); upd(); });
+  } else {
+    if(isNew&&p.money-c.b<20) sel=null;
+    else sel=cpuBuild({money:p.money-landCost},c,opts.filter(k=>!(k==='h'&&p.laps<1)));
+  }
+  if(!sel) return false;
+  let cost=landCost; sel.forEach(k=>cost+=c.b*BCOST[k]); cost=r1(cost);
+  if(cost>p.money||cost===0) return false;
+  if(sel.length&&charProc(p,4,cst(p,4)/200)){ const bc=r1(cost-landCost); cost=r1(landCost+bc*.7); log(`${p.name}：建設費が30%引き`,p); }
+  else if(sel.length&&procs(p,'helmet')){ const bc=r1(cost-landCost); cost=r1(landCost+bc/2); log(`⛑️ ${p.name}：建設費が半額に（−${fmt(bc/2)}）`,p); }
+  p.money=r1(p.money-cost); c.inv=r1(c.inv+cost); sel.forEach(k=>c[k]=true);
+  if(isNew) c.owner=p.id;
+  const what=(isNew?['土地']:[]).concat(sel.map(k=>BNAME[k])).join('・');
+  log(`🏗️ ${p.name}：${c.n} に ${what}（${fmt(cost)}）`,p); render();
+  if(!p.human) await toast(`<b>🏗️ ${c.n}</b>${what}`,700);
+  if(checkWin(p)) return true;
+  return true;
+}
+async function landmarkOffer(p,i){
+  const c=cells[i];
+  if(c.lm||!(c.v&&c.bl&&c.h)) return false;
+  let cost=r1(c.b*BCOST.lm); if(p.money<cost) return false;
+  const ok=p.human? await ask(`🗼 ${c.n} にランドマークを建てますか？`,`建設費 <b>${fmt(cost)}</b><br>通行料 ${fmt(toll(i))} → <b>${fmt(r1(toll(i)+c.b*BTOLL.lm*(colorMono(c.owner,c.g)?2:1)*(c.fest?2:1)*(olyCity===i?olyMul:1)))}</b><br>ランドマークは<b>買収されなくなります</b>`,
+    [{label:'見送る',value:false},{label:'建設する',value:true,primary:true}]) : p.money-cost>=25;
+  if(!ok) return false;
+  p.money=r1(p.money-cost); c.inv=r1(c.inv+cost); c.lm=true;
+  log(`🗼 <b>${p.name} が ${c.n} にランドマーク建設</b>（${fmt(cost)}）`,p); render();
+  await toast(`<b>🗼 ランドマーク完成！</b>${c.n}（${p.name}）`,900);
+  const near=players.filter(o=>o!==p&&o.alive&&!o.island&&Math.min((o.pos-i+N)%N,(i-o.pos+N)%N)<=3&&o.pos!==i);
+  if(near.length&&procs(p,'magnet')){
+    for(const o of near){ if(gameOver) break; o.pos=i; render(); const t=r1(toll(i)/2);
+      log(`🧲 ${o.name} が ${c.n} に引き寄せられた（通行料 ${fmt(t)}）`,p); floatAt(i,'−'+fmt(t),p.color);
+      await toast(`<b>🧲 引き寄せ！</b>${o.name} → ${c.n}（通行料 ${fmt(t)}）`,1000); await pay(o,t,p); } }
+  return true;
+}
+
+/* ---------- CPU helpers ---------- */
+let cpuLevel=1;
+function cellValue(p,i){ const c=cells[i];
+  if(isProp(c)){ if(c.owner===null) return p.money>=(c.t==='city'?c.b:TOUR_PRICE)?10+(c.t==='city'?c.b:8):1; if(c.owner===p.id) return c.t==='city'&&!c.lm?6:2; return -toll(i); }
+  return {chance:3,roulette:2,bonus:3,start:5,island:-8,travel:4,olympic:props(p).length?4:0,tax:-propValue(p)*.1}[c.t]||0; }
+function cpuGauge(p){
+  if(cpuLevel===0||(cpuLevel===1&&Math.random()<.5)) return Math.random();
+  let best=7,bv=-1e9; for(let n=2;n<=12;n++){ const v=cellValue(p,(p.pos+n)%N); if(v>bv){ bv=v; best=n; } }
+  return Math.min(.999,Math.max(0,(best-2)/10+(Math.random()-.5)*.04));
+}
+function cpuTravelDest(p){
+  let best=0,score=-1;
+  cells.forEach((c,i)=>{ if(i===p.pos||!isProp(c)) return; let s=-1;
+    if(c.owner===null){ const pr=c.t==='city'?c.b:TOUR_PRICE; if(p.money-TRAVEL_FEE>=pr+15) s=pr+10*cells.filter(x=>x.t===c.t&&(c.t==='tour'||x.g===c.g)&&x.owner===p.id).length; }
+    else if(c.owner===p.id&&c.t==='city'&&!c.lm) s=c.b*.7;
+    if(s>score){score=s;best=i;} });
+  return score<0?0:best;
+}
+function bestOwn(p,filter){ return props(p).filter(filter).sort((a,b)=>toll(b)-toll(a))[0]; }
+
+/* ---------- landing ---------- */
+async function landProp(p,i){
+  const c=cells[i];
+  if(c.owner===null){
+    if(c.t==='tour'){
+      if(p.money<TOUR_PRICE){ log(`${p.name}：${c.n} を買う資金がない`,p); return; }
+      const ok=p.human? await ask(`${c.ic} ${c.n} を購入しますか？`,propInfo(i)+`<br>所持金 ${fmt(p.money)} → <b>${fmt(p.money-TOUR_PRICE)}</b>`,[{label:'見送る',value:false},{label:`購入（${fmt(TOUR_PRICE)}）`,value:true,primary:true}]) : p.money-TOUR_PRICE>=25;
+      if(ok){ p.money=r1(p.money-TOUR_PRICE); c.owner=p.id; c.inv=TOUR_PRICE; log(`${c.ic} ${p.name} が観光地 ${c.n} を購入`,p); render(); if(!p.human) await toast(`<b>${c.ic} 観光地購入</b>${p.name}：${c.n}`,700); checkWin(p); }
+      return;
+    }
+    if(p.money<c.b){ log(`${p.name}：${c.n} を買う資金がない`,p); return; }
+    await buildDialog(p,i,true); return;
+  }
+  if(c.owner===p.id){ const llv=pv(p,'landlord'); if(c.t==='city'&&llv>0&&c.inv>0){ const v=r1(c.inv*llv); p.money=r1(p.money+v); itemProc(p,'landlord'); floatAt(i,'+'+fmt(v),'#2fae6a'); log(`🔑 ${p.name}：大家さんの鍵で ${fmt(v)} 獲得`,p); }
+    if(c.t==='city') await buildDialog(p,i,false); return; }
+  // rival's property
+  const owner=players[c.owner];
+  if(c.t==='tour'&&c.tt==='pink') c.visits=Math.min(3,c.visits+1);
+  let t=toll(i);
+  if(procs(owner,'ruby')) t=r1(t*1.5);
+  if(p.bt){ p.bt=false; if(procs(p,'bat')){ log(`🏏 ${p.name}：ぼったくりを打ち返した`,p); } else { t=r1(t*2); log(`💢 ぼったくり！ ${p.name} の通行料が2倍`,p); await toast(`<b>💢 ぼったくり！</b>通行料が2倍`,900); } }
+  if(!p.fv){ p.fv=true; if(procs(p,'vip')){ t=0; log(`💳 ${p.name}：VIPパスで通行料免除`,p); } }
+  if(t>0&&procs(p,'compass')) t=r1(t/2);
+  if(t>0&&charProc(p,0,cst(p,0)/200)) t=r1(t*.7);
+  if(p.card==='angel'||p.card==='discount'){
+    const use=p.human? await ask(`${CARD_INFO[p.card][0]}を使いますか？`,`通行料 <b>${fmt(t)}</b> → <b>${p.card==='angel'?'0万':fmt(t/2)}</b>`,[{label:'使わない',value:false},{label:'使う',value:true,primary:true}]) : t>=8;
+    if(use){ if(p.card==='angel'&&c.lm&&procs(owner,'angelbreak')){ log(`⚡ ${owner.name}：天使カードを無効化！`,owner); await toast(`<b>⚡ 天使カード無効！</b>${owner.name} のランドマーク`,1000); p.card=null; } else { log(`${CARD_INFO[p.card][0]}：${p.name} の通行料を${p.card==='angel'?'免除':'半額に'}`,p); t=p.card==='angel'?0:r1(t/2); p.card=null; } render(); }
+  }
+  if(t>0){ floatAt(i,'−'+fmt(t),owner.color); log(`💸 ${p.name} → ${owner.name}：${c.n} 通行料 ${fmt(t)}`,p); await toast(`<b>💸 通行料 ${fmt(t)}</b>${p.name} → ${owner.name}`,1000); if(!await pay(p,t,owner)) return; if(!gameOver&&procs(p,'healtrip')){ p.travel=true; log(`🧳 ${p.name}：次のターンは世界旅行`,p); } }
+  if(gameOver||!p.alive||c.t==='tour'||c.lm) return;
+  let cost=r1(c.inv*2);
+  if(p.money<cost*.7) return;
+  if(charProc(p,6,cst(p,6)/200)) cost=r1(cost*.7);
+  if(p.money<cost) return;
+  let ok;
+  if(p.human) ok=await ask(`⚔️ ${c.n} を買収しますか？`,propInfo(i)+`<br>買収価格 <b>${fmt(cost)}</b>（建設費の2倍・${owner.name}に支払い）<br>所持金 ${fmt(p.money)} → <b>${fmt(p.money-cost)}</b>`,[{label:'やめておく',value:false},{label:'買収する',value:true,primary:true}]);
+  else { const left=cells.filter(x=>x.t==='city'&&x.g===c.g&&x.owner!==p.id).length; ok=p.money-cost>=30&&(left===1||Math.random()<.5); }
+  if(!ok) return;
+  if(procs(owner,'cloak')){ log(`🧥 ${owner.name} の鉄壁のマントが ${c.n} の買収を阻止`,owner); await toast(`<b>🧥 買収阻止！</b>${owner.name} が ${c.n} を守った`,1100); return; }
+  p.money=r1(p.money-cost); owner.money=r1(owner.money+cost); c.owner=p.id;
+  log(`⚔️ <b>${p.name} が ${owner.name} から ${c.n} を買収</b>（${fmt(cost)}）`,p); render();
+  await showCert(p,c,cost,owner);
+  if(checkWin(p)) return;
+  if(c.v&&c.bl&&c.h) await landmarkOffer(p,i); else await buildDialog(p,i,false);
+}
+
+const CARDS=[
+ ...Array(3).fill('angel'),...Array(3).fill('discount'),...Array(3).fill('shield'),...Array(2).fill('escape'),
+ 'swap','swap','forcesell','forcesell','toIsland','toTravel','toOlympic','toStart','toTax','birthday','bonus','donate','bottakuri','bottakuri','fundraise'];
+const ORDER_INFO={swap:['🔁 都市交換','自分の都市と相手の都市を交換する（攻撃）'],forcesell:['💣 強制売却','相手の物件を1つ強制的に売却させる（攻撃）'],
+ toIsland:['🌊 遭難','無人島へ直行'],toTravel:['✈️ 旅行券','世界旅行マスへ移動'],toOlympic:['🏅 招待状','オリンピックマスへ移動'],toStart:['🏁 帰宅','スタートへ移動'],
+ toTax:['🧾 税務調査','国税庁へ移動'],birthday:['🎂 誕生日','全員から5万ずつもらう'],bonus:['💰 臨時収入','20万を受け取る'],donate:['🤝 寄付','10万を寄付する'],bottakuri:['💢 ぼったくり','次に止まった相手の物件の通行料が2倍になる'],fundraise:['🤲 募金','全員が最下位のプレイヤーに5万ずつ募金する']};
+async function chooseTarget(p,filter,title){
+  const list=cells.map((c,i)=>i).filter(i=>{ const c=cells[i]; return isProp(c)&&c.owner!=null&&c.owner!==p.id&&players[c.owner].alive&&filter(c); });
+  if(!list.length) return null;
+  if(!p.human) return list.sort((a,b)=>cells[b].inv-cells[a].inv)[0];
+  return ask(title,'対象の物件を選んでください',list.map(i=>{ const c=cells[i],o=players[c.owner]; return {label:`<span style="color:${o.color}">●</span> ${c.n}（${o.name}）　価値 ${fmt(c.inv)}${o.card==='shield'?' 🛡️':''}`,value:i}; }),true);
+}
+async function shielded(target,p){
+  if(procs(target,'defend')){ log(`🪖 ${target.name} が攻撃を防いだ`,target); await toast(`<b>🪖 防御！</b>${target.name} が攻撃を防いだ`,1000); return true; }
+  if(target.card!=='shield') return false;
+  if(procs(p,'breaker')){ target.card=null; log(`🔨 ${p.name} が ${target.name} のシールドを破壊！`,p); render(); await toast(`<b>🔨 シールド破壊！</b>攻撃が通った`,1000); return false; }
+  target.card=null; log(`🛡️ ${target.name} のシールドが ${p.name} の攻撃を防いだ`,target); render();
+  await toast(`<b>🛡️ ブロック！</b>${target.name} のシールドが発動`,1000); return true;
+}
+async function drawChance(p){
+  let k=CARDS[rand(CARDS.length)];
+  const BAD=['toIsland','toTax','donate','bottakuri'];
+  if(!p.fc){ p.fc=true; if(procs(p,'invite')){ k='toTravel'; log(`🎫 ${p.name}：旅の招待状で旅行券に`,p); } }
+  if(BAD.includes(k)&&charProc(p,3,cst(p,3)/150)){ const good=CARDS.filter(x=>!BAD.includes(x)); log(`${p.name}：黄金フォーチュンで ${ORDER_INFO[k][0]} を引き直し`,p); k=good[rand(good.length)]; }
+  if(BAD.includes(k)&&procs(p,'luckycard')){ const good=CARDS.filter(x=>!BAD.includes(x)); log(`🎴 ${p.name}：${ORDER_INFO[k][0]} を引き直し`,p); k=good[rand(good.length)]; }
+  if(CARD_INFO[k]){
+    const [n,d]=CARD_INFO[k];
+    log(`🃏 ${p.name}：${n}（${d}）を保管`,p);
+    if(p.human) await ask(n,d+(p.card?`<br><small>（${CARD_INFO[p.card][0]} と入れ替わります）</small>`:'')+'<br>カードは1枚だけ保管できます。',[{label:'保管する',value:1,primary:true}]);
+    else await toast(`<b>${n}</b>${p.name} が保管`,900);
+    p.card=k; render(); return;
+  }
+  const [n,d]=ORDER_INFO[k];
+  log(`🃏 ${p.name}：${n}（${d}）`,p);
+  if(p.human) await ask(n,d,[{label:'OK',value:1,primary:true}]); else await toast(`<b>${n}</b>${d}`,1100);
+  switch(k){
+    case 'swap':{
+      const mine=props(p).filter(i=>cells[i].t==='city'&&!cells[i].lm).sort((a,b)=>cells[a].inv-cells[b].inv);
+      if(!mine.length){ log('交換できる自分の都市がない',p); return; }
+      const t=await chooseTarget(p,c=>c.t==='city'&&!c.lm,'🔁 どの都市と交換する？'); if(t==null){ log('交換できる相手の都市がない',p); return; }
+      const tc=cells[t],tgt=players[tc.owner]; if(await shielded(tgt,p)) return;
+      const mc=cells[mine[0]]; mc.owner=tgt.id; tc.owner=p.id;
+      log(`🔁 <b>${p.name} の ${mc.n} と ${tgt.name} の ${tc.n} を交換</b>`,p); render(); await toast(`<b>🔁 エリア交換中…</b>${mc.n} ⇄ ${tc.n}`,1200);
+      checkWin(p)||checkWin(tgt); return;
+    }
+    case 'forcesell':{
+      const t=await chooseTarget(p,()=>true,'💣 どの物件を売却させる？'); if(t==null){ log('対象がない',p); return; }
+      const tc=cells[t],tgt=players[tc.owner]; if(await shielded(tgt,p)) return;
+      const v=r1(tc.inv*.5); tgt.money=r1(tgt.money+v);
+      log(`💣 <b>${tgt.name} の ${tc.n} が強制売却</b>（${fmt(v)} 返金）`,p); clearProp(tc); render(); await toast(`<b>💣 強制売却</b>${tgt.name} の ${tc.n} が消えた`,1000); return;
+    }
+    case 'toIsland': p.pos=8; p.island=3; render(); return;
+    case 'toTravel': await teleport(p,24); return land(p);
+    case 'toOlympic': await teleport(p,16); return land(p);
+    case 'toStart': await teleport(p,0); return land(p);
+    case 'toTax': await teleport(p,28); return land(p);
+    case 'birthday': for(const o of players) if(o.alive&&o!==p&&!gameOver) await pay(o,5,p); return;
+    case 'bonus': p.money=r1(p.money+20); render(); return;
+    case 'donate': await pay(p,10,null); return;
+    case 'bottakuri': p.bt=true; render(); return;
+    case 'fundraise': { const last=players.filter(x=>x.alive).sort((a,b)=>assets(a)-assets(b))[0];
+      log(`🤲 募金：全員から ${last.name} へ`,p); for(const o of players) if(o.alive&&o!==last&&!gameOver) await pay(o,5,last); return; }
+  }
+}
+const RL_EV=[['💰 給料ボーナス','給料1回分をもらう'],['🧾 臨時徴税','所持金の10%を払う'],['🏁 ワープ','スタートへワープして給料をもらう'],['🌊 島流し','無人島へ'],['✈️ 旅行券','次のターンに世界旅行'],['🤲 募金','全員が最下位へ5万ずつ募金']];
+const RL_TG=['全員','1位','最下位','止まった人'];
+async function roulette(p){
+  const t=$('#toast'); t.classList.add('show');
+  let e=0,g=0; for(let k=0;k<14;k++){ e=rand(RL_EV.length); g=rand(RL_TG.length); t.innerHTML=`<b>🎡 運命のルーレット</b>${RL_TG[g]}　→　${RL_EV[e][0]}`; await sleep(D(70+k*12)); }
+  t.classList.remove('show');
+  const alive=players.filter(x=>x.alive), byA=[...alive].sort((a,b)=>assets(b)-assets(a));
+  const tg=e===5?[]:g===0?alive:g===1?[byA[0]]:g===2?[byA[byA.length-1]]:[p];
+  const html=`<b>🎡 ${RL_TG[g]}に「${RL_EV[e][0]}」</b>${RL_EV[e][1]}`+(e===5?'':`<br><small>対象：${tg.map(x=>x.name).join('・')}</small>`);
+  log(`🎡 運命のルーレット：${e===5?'':RL_TG[g]+'に'}${RL_EV[e][0]}（${RL_EV[e][1]}）`,p);
+  if(isMe(p)&&p.human) await ask('🎡 運命のルーレット',html,[{label:'OK',value:1,primary:true}]); else await toast(html,1400);
+  if(e===5){ const last=byA[byA.length-1]; for(const o of alive) if(o!==last&&!gameOver) await pay(o,5,last); return; }
+  for(const x of tg){ if(gameOver||!x.alive) continue;
+    if(e===0){ x.money=r1(x.money+SALARY); floatAt(x.pos,'+'+fmt(SALARY),'#2fae6a'); }
+    else if(e===1){ const v=r1(x.money*.1); if(v>0) await pay(x,v,null); }
+    else if(e===2){ x.pos=0; x.laps++; x.money=r1(x.money+SALARY); }
+    else if(e===3){ x.pos=8; x.island=3; }
+    else if(e===4){ x.travel=true; } }
+  render();
+}
+async function hostOlympic(p){
+  const mine=props(p);
+  if(!mine.length||p.money<OLY_FEE){ log(`🏅 ${p.name}：開催できる物件がない`,p); return; }
+  let i;
+  if(p.human) i=await ask('🏅 オリンピック開催',`${fmt(OLY_FEE)}払って自分の物件で開催できます。開催すると通行料が <b>×${Math.min(5,olyCount+2)}</b> に（前の開催地はリセット）`,
+    [...mine.map(k=>({label:`${cells[k].n}　現在 ${fmt(toll(k))}`,value:k})),{label:'開催しない',value:null}],true);
+  else i=bestOwn(p,()=>true);
+  if(i==null) return;
+  if(!await feeFree(p,'オリンピック開催費')) p.money=r1(p.money-OLY_FEE); olyCount++; olyMul=Math.min(5,olyCount+1); olyCity=i;
+  log(`🏅 <b>${p.name} が ${cells[i].n} でオリンピック開催</b>（通行料×${olyMul}）`,p); render();
+  await toast(`<b>🏅 オリンピック開催</b>${cells[i].n} 通行料×${olyMul}`,1000);
+}
+async function startBuild(p){
+  const mine=props(p).filter(i=>{ const c=cells[i]; return c.t==='city'&&!c.lm&&(!(c.v&&c.bl&&c.h)?['v','bl','h'].some(k=>!c[k]&&!(k==='h'&&p.laps<1)):true); });
+  if(!mine.length) return;
+  let i;
+  if(p.human) i=await ask('🏁 スタートにぴったり！','所有している都市を1つ選んで建設できます。',[...mine.map(k=>({label:`${cells[k].n}　${cells[k].v?'🏠':''}${cells[k].bl?'🏢':''}${cells[k].h?'🏨':''}`,value:k})),{label:'建設しない',value:null}],true);
+  else i=bestOwn(p,k=>mine.includes(k));
+  if(i!=null) await buildDialog(p,i,false);
+}
+
+/* ---------- bonus minigame ---------- */
+function mgChoice(buttons){ return new Promise(res=>{ const bx=$('#mg-btns'); bx.innerHTML=''; buttons.forEach(b=>{ const e=document.createElement('button'); e.className='btn '+(b.primary?'primary':'ghost'); e.textContent=b.label; e.disabled=!!b.disabled; e.onclick=()=>res(b.value); bx.appendChild(e); }); }); }
+const COIN_HTML=`<div class="coin" id="coin"><div class="face front">オモテ</div><div class="face back">ウラ</div></div><div class="result" id="mgres"></div>`;
+const PK_HTML=`<div class="pk"><div class="goal"></div><div class="grass"></div><div class="keeper" id="keeper">🧤</div><div class="ball" id="ball">⚽</div><div class="result" id="mgres"></div></div>`;
+const MG_BETS=[10,20,30];
+const mgHist={coin:[],pk:[]};
+const histLabel=(g,r)=>g==='coin'?(r?'ウラ':'オモテ'):(r?'ミギ':'ヒダリ');
+function gcHTML(game){ return `<div class="gc">
+  <div class="gc-side"><div class="gc-r" id="gr1">1st<br>GAME</div><div class="gc-r" id="gr2">2nd<br>GAME</div><div class="gc-r" id="gr3">3rd<br>GAME</div><div class="gc-lab">結果履歴</div><div class="gc-hist" id="ghist"></div></div>
+  <div class="gc-mid"><div class="gc-prize" id="gprize"></div>${game==='pk'?PK_HTML:COIN_HTML}</div>
+  <div class="gc-side"><div class="gc-lab">参加費</div>${[...MG_BETS].reverse().map(b=>`<div class="gc-bet" data-b="${b}">${fmt(b)}</div>`).join('')}<div class="gc-lab" style="margin-top:6px">報酬倍率</div><div class="gc-mul" id="gmul">x1</div></div>
+</div>`; }
+async function animCoin(res){
+  const c=$('#coin'); c.style.transition='none'; c.style.transform='rotateY(0deg)'; c.offsetWidth;
+  c.style.transition='transform 1.3s cubic-bezier(.2,.7,.2,1)'; c.style.transform=`rotateY(${1800+(res?180:0)}deg)`; await sleep(1350);
+}
+async function animPK(shot,dive){
+  const k=$('#keeper'),b=$('#ball');
+  k.style.transition=b.style.transition='none'; k.style.transform='translateX(-50%)'; b.style.transform='translate(-50%,0)'; k.offsetWidth;
+  k.style.transition='transform .45s cubic-bezier(.2,.8,.3,1)'; b.style.transition='transform .55s cubic-bezier(.2,.7,.3,1)';
+  b.style.transform=`translate(calc(-50% + ${shot?70:-70}px),-112px) scale(.75)`;
+  await sleep(120); k.style.transform=`translateX(calc(-50% + ${dive?66:-66}px)) rotate(${dive?25:-25}deg)`; await sleep(700);
+}
+function winProb(p){ return Math.min(.75,.35+cst(p,1)/300+pv(p,'glove')); }
+function mgPayout(p,bet,mul){ let pot=bet*mul; if(pot>0&&pv(p,'piggy')>0){ pot=r1(pot*(1+pv(p,'piggy'))); itemProc(p,'piggy'); } if(pot===0&&pv(p,'insurance')>0){ pot=r1(bet*pv(p,'insurance')); itemProc(p,'insurance'); } return pot; }
+async function bonusGame(p){
+  if(p.money<MG_BETS[0]){ log(`🎰 ${p.name}：所持金不足でボーナスゲームに参加できない`,p); return; }
+  if(!p.human){
+    const bet=p.money>=90?20:10; p.money=r1(p.money-bet); let mul=1, rounds=0;
+    const g=rand(2)?'coin':'pk'; for(let k=0;k<3;k++){ rounds++; mgHist[g].push(histLabel(g,rand(2))); if((k===0&&!p.fm&&(p.fm=true)&&procs(p,'firstwin'))||Math.random()<winProb(p)){ mul*=2; if(k<2&&Math.random()<.5) break; } else { mul=0; break; } }
+    const pot=mgPayout(p,bet,mul); p.money=r1(p.money+pot); render();
+    log(`🎰 ${p.name}：ボーナスゲームで ${fmt(bet)} 参加 → ${mul?fmt(pot)+' 獲得（x'+mul+'）':'没収…'}`,p);
+    await toast(`<b>🪙 ボーナスゲーム</b>${p.name}：${mul?`${fmt(pot)} 獲得！（x${mul}）`:`${fmt(bet)} 没収…`}`,1100); return;
+  }
+  $('#mini').hidden=false; $('#mg-title').textContent='🪙 ボーナスゲーム';
+  $('#mg-stage').style.height='190px'; $('#mg-stage').innerHTML='<div style="font-size:64px">🎰</div>'; $('#mg-info').textContent='遊ぶゲームを選んでください';
+  const game=await mgChoice([{label:'🪙 コイントス',value:'coin',primary:true},{label:'⚽ PKチャレンジ',value:'pk',primary:true},{label:'参加しない',value:null}]);
+  if(game&&pv(p,'glove')>0) itemProc(p,'glove');
+  if(game) $('#mg-title').textContent=game==='coin'?'🪙 ボーナスゲーム（コイントス）':'⚽ ボーナスゲーム（PK）';
+  if(!game){ $('#mini').hidden=true; return; }
+  $('#mg-stage').style.height='250px'; $('#mg-stage').innerHTML=gcHTML(game);
+  const hist=[]; let bet=0, mul=1;
+  const upd=(rd)=>{ $('#gprize').textContent=bet?fmt(bet*mul):'';
+    $('#gmul').textContent='x'+mul;
+    document.querySelectorAll('.gc-bet').forEach(e=>e.classList.toggle('on',+e.dataset.b===bet));
+    for(let k=1;k<=3;k++){ const e=$('#gr'+k); e.className='gc-r'+(k<rd?(hist[k-1]&&hist[k-1].win?' win':' lose'):k===rd&&mul?' on':''); }
+    $('#ghist').innerHTML=mgHist[game].slice(-7).reverse().map(h=>`<div style="background:${h==='オモテ'||h==='ヒダリ'?'#d9822b':'#3e7bfa'}">${h}</div>`).join(''); };
+  upd(0);
+  $('#mg-info').innerHTML=game==='pk'?'左右どちらかにシュート！ 決まるたびに報酬倍率アップ（最大3回）':'オモテかウラを当てよう。当たるたびに報酬倍率アップ（最大3回）';
+  bet=await mgChoice(MG_BETS.map(b=>({label:`参加費 ${fmt(b)}`,value:b,disabled:p.money<b,primary:true})));
+  p.money=r1(p.money-bet); render();
+  for(let rd=1;rd<=3;rd++){
+    upd(rd); $('#mgres').textContent='';
+    $('#mg-info').innerHTML=`${['1st','2nd','3rd'][rd-1]} GAME　成功で <b>x${mul*2}（${fmt(bet*mul*2)}）</b>`;
+    const opts=game==='pk'?[{label:'◀ ヒダリ',value:0,primary:true},{label:'ミギ ▶',value:1,primary:true}]:[{label:'🪙 オモテ',value:0,primary:true},{label:'ウラ 🪙',value:1,primary:true}];
+    if(rd>1) opts.push({label:`STOP（報酬 ${fmt(bet*mul)} を受け取る）`,value:'stop'});
+    const pick=await mgChoice(opts);
+    if(pick==='stop') break;
+    $('#mg-btns').innerHTML='';
+    let willWin=Math.random()<winProb(p); if(!p.fm){ p.fm=true; if(!willWin&&procs(p,'firstwin')) willWin=true; }
+    const res=game==='coin'?(willWin?pick:1-pick):(willWin?1-pick:pick); let win;
+    if(game==='coin'){ await animCoin(res); win=pick===res; } else { await animPK(pick,res); win=pick!==res; }
+    hist.push({win}); mgHist[game].push(histLabel(game,res));
+    $('#mgres').textContent=win?'WIN':'LOSE'; $('#mgres').style.color=win?'#ffd56b':'#ddd';
+    if(!win){ mul=0; upd(rd+1); $('#mg-info').innerHTML=`残念！ 参加費 ${fmt(bet)} は没収`; await mgChoice([{label:'閉じる',value:1}]); break; }
+    mul*=2; upd(rd+1);
+    if(rd===3){ $('#mg-info').innerHTML=`🎉 3連続成功！ <b>${fmt(bet*mul)}</b> 獲得`; await mgChoice([{label:'受け取る',value:1,primary:true}]); break; }
+  }
+  const pot=mgPayout(p,bet,mul); p.money=r1(p.money+pot); $('#mini').hidden=true; render();
+  log(`🪙 ${p.name}：ボーナスゲーム ${pot?fmt(pot)+' 獲得（x'+mul+'）':fmt(bet)+' 没収'}`,p);
+}
+
+async function land(p){
+  if(gameOver||!p.alive) return;
+  const i=p.pos, c=cells[i];
+  switch(c.t){
+    case 'city': case 'tour': return landProp(p,i);
+    case 'chance': return drawChance(p);
+    case 'roulette': return roulette(p);
+    case 'start': return startBuild(p);
+    case 'island': p.island=3; log(`🌴 ${p.name} は無人島に漂着（3ターン）`,p); if(pv(p,'treasure')>0){ const v=r1(SALARY*pv(p,'treasure')); p.money=r1(p.money+v); itemProc(p,'treasure'); log(`🗺️ ${p.name}：宝の地図で ${fmt(v)} 獲得`,p); } if(procs(p,'buoy')){ p.island=0; log(`🛟 ${p.name} は救命ブイですぐに脱出`,p); render(); await toast(`<b>🛟 救命ブイ</b>${p.name} は無人島からすぐ脱出！`,1000); return; } render(); if(!p.human) await toast(`<b>🌴 無人島</b>${p.name} は足止め`,700); return;
+    case 'travel': p.travel=true; log(`✈️ ${p.name} は次のターン世界旅行へ`,p); render(); return;
+    case 'olympic': return hostOlympic(p);
+    case 'bonus': return bonusGame(p);
+    case 'tax': { const t=r1(propValue(p)*.1); if(!t){ log(`🏛️ ${p.name}：課税対象なし`,p); return; } if(await feeFree(p,'税金')) return; log(`🏛️ ${p.name} は税金 ${fmt(t)} を納付`,p); await toast(`<b>🏛️ 国税庁</b>${p.name} は ${fmt(t)} を納付`,900); await pay(p,t,null); return; }
+  }
+}
+
+/* ---------- turns ---------- */
+async function turn(p){
+  render();
+  if(p.island>0){
+    let how;
+    if(p.human){
+      const opts=[{label:'🎲 ゾロ目に挑戦',value:'roll',primary:true}];
+      if(p.money>=ISLAND_FEE) opts.unshift({label:`💰 ${fmt(ISLAND_FEE)}払って脱出`,value:'pay'});
+      if(p.card==='escape') opts.unshift({label:'🔑 脱出カードを使う',value:'card'});
+      how=await ask('🌴 無人島',`残り ${p.island} ターン。どうやって脱出する？`,opts);
+    } else how=p.card==='escape'?'card':(p.money>=80?'pay':'roll');
+    if(how==='card'){ p.card=null; p.island=0; log(`🔑 ${p.name} は脱出カードで脱出`,p); }
+    else if(how==='pay'){ if(!await feeFree(p,'脱出費用')) p.money=r1(p.money-ISLAND_FEE); p.island=0; log(`💰 ${p.name} は ${fmt(ISLAND_FEE)} 払って脱出`,p); }
+    else {
+      const [a,b]=await rollDice(p,'ゾロ目で脱出！');
+      let esc=a===b; if(!p.fe){ p.fe=true; if(!esc&&procs(p,'escape1')) esc=true; }
+      if(esc){ p.island=0; log(`🎉 ${p.name} はゾロ目で脱出！`,p); await moveSteps(p,a+b); await land(p); }
+      else { p.island--; setMsg(p.island?'脱出失敗…':'次のターンから動ける'); log(`🌴 ${p.name} は脱出失敗（残り${p.island}）`,p); render(); await sleep(D(500)); }
+      return;
+    }
+    render();
+  }
+  if(p.travel){
+    p.travel=false;
+    if(p.money>=TRAVEL_FEE){
+      let dest;
+      if(p.human){ const go=await ask('✈️ 世界旅行',`${fmt(TRAVEL_FEE)}払って好きなマスへ移動しますか？`,[{label:'普通にサイコロを振る',value:false},{label:'旅行する',value:true,primary:true}]);
+        dest=go?await pickCell('✈️ 行き先のマスをタップ',i=>i!==24):null; }
+      else dest=cpuTravelDest(p);
+      if(dest!=null){ if(!await feeFree(p,'旅行費用')) p.money=r1(p.money-TRAVEL_FEE); log(`✈️ ${p.name} は ${cells[dest].n} へ旅行`,p); await teleport(p,dest,40); await land(p); return; }
+    }
+  }
+  let dbl=0;
+  while(!gameOver&&p.alive){
+    const [a,b]=await rollDice(p,dbl?'ゾロ目！もう一度':undefined);
+    if(a===b) dbl++;
+    if(dbl===3){ log(`🌊 ${p.name} はゾロ目3連続で無人島へ`,p); p.pos=8; p.island=3; render(); await toast('<b>🌊 ゾロ目3連続</b>無人島へ流された…',1000); break; }
+    let steps=a+b, back=false;
+    if(!p.fr){ p.fr=true;
+      if(pv(p,'crystal')>0){ const v=r1(steps*SALARY*pv(p,'crystal')); p.money=r1(p.money+v); itemProc(p,'crystal'); log(`🔮 ${p.name}：運命の水晶で ${fmt(v)} 獲得`,p); }
+      if(procs(p,'rocket')){ steps*=2; log(`🚀 ${p.name}：${steps}マス進む`,p); }
+      else if(procs(p,'reverse')){ back=true; log(`⏪ ${p.name}：逆方向に ${steps}マス`,p); } }
+    if(back) await moveBack(p,steps); else await moveSteps(p,steps);
+    await thiefCheck(p);
+    await land(p);
+    if(gameOver||!p.alive||p.island||p.travel) break;
+    if(a===b){ log(`🎯 ${p.name} はゾロ目！もう一度`,p); continue; }
+    break;
+  }
+}
+async function gameLoop(id){
+  while(!gameOver&&id===gameId){
+    for(let i=0;i<players.length&&!gameOver&&id===gameId;i++){
+      if(!players[i].alive) continue;
+      turnIdx=i; render(); await turn(players[i]); render(); await sleep(D(320));
+    }
+    if(gameOver||id!==gameId) break;
+    round++;
+    log(`── TURN ${round} ──`);
+  }
+}
+let winBonus=1;
+function endGame(w,reason,bonus){
+  if(gameOver) return; gameOver=true; winnerId=w.id; winReason=reason; winBonus=bonus||1; render(); showResult();
+}
+function escapeText(t){ return String(t).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); }
+function showResult(){
+  if(resultShown) return; resultShown=true;
+  const w=players[winnerId]||players[0], reason=winReason;
+  $('#roll').disabled=true; $('#roll').textContent='ゲーム終了';
+  $('#r-title').textContent=isMe(w)?'あなたの勝利！':`${w.name} の勝利`;
+  $('#r-reason').innerHTML=escapeText(reason)+(winBonus>1?`<div class="bonusbox">独占ボーナス <b>×${winBonus}</b><br>獲得スコア <b>${fmt(assets(w)*winBonus)}</b></div>`:`<div class="bonusbox">獲得スコア <b>${fmt(assets(w))}</b></div>`);
+  const rank=[...players].sort((a,b)=>((b===w)-(a===w))||(b.alive-a.alive)||(assets(b)-assets(a)));
+  $('#r-rank').innerHTML=rank.map((p,i)=>`<li style="--pc:${p.color}"><span>${['🥇','🥈','🥉','4位'][i]} ${p.name}</span><span>${p.alive?fmt(assets(p)):'破産'}</span></li>`).join('');
+  const me=players.find(isMe); if(me&&SV){ const g=rewardGold(me,w===me); $('#r-reason').insertAdjacentHTML('beforeend',`<div class="bonusbox" style="background:#5a3d00">💰 ゴールド <b>+${g.toLocaleString()} G</b><br><small>マイルームでガチャ・強化に使えます</small></div>`); }
+  setTimeout(()=>{ $('#modal').hidden=true; $('#mini').hidden=true; $('#result').hidden=false; },600);
+}
+
+/* ---------- start ---------- */
+function freshCells(){ return DEF.map(d=>({...d,owner:null,v:false,bl:false,h:false,lm:false,inv:0,visits:0,fest:false})); }
+function newGame(){ resultShown=false; winnerId=null; logList=[]; warned.clear(); $("#warn").classList.remove("show");
+  gameId++; gameOver=false; round=1; turnIdx=0; picking=null; rollResolver=null; parity=''; parLeft=3;
+  olyCity=null; olyMul=1; olyCount=0;
+  document.body.classList.remove('picking');
+  cells=freshCells();
+  const cityIdx=cells.map((c,i)=>i).filter(i=>cells[i].t==='city');
+  for(let k=0;k<3;k++){ const j=cityIdx.splice(rand(cityIdx.length),1)[0]; cells[j].fest=true; }
+  players=PRESETS.slice(0,nPlayers).map((p,i)=>({...p,id:i,money:START_MONEY,pos:0,laps:0,alive:true,island:0,travel:false,card:null,human:!!p.human,...(p.human?myLoadout():cpuLoadout(cpuLevel)),fr:false,fc:false,fv:false,bt:false,fe:false,fm:false}));
+  players.forEach(p=>p.money=startMoney(p)); monoSeen.clear(); parLeft=3+pv(players.find(isMe),'parity');
+  log(`🎲 ゲーム開始！ 所持金 ${fmt(START_MONEY)}　🎉 フェスティバル：${cells.filter(c=>c.fest).map(c=>c.n).join('・')}`);
+  log('🎒 装備：'+players.map(p=>p.name+' '+loadoutText(p)).join('／'));
+  showDice(1,1); setMsg(''); render(); gameLoop(gameId);
+}
+function segInit(sel,attr,cb){ document.querySelectorAll(sel+' button').forEach(b=>b.onclick=()=>{ document.querySelectorAll(sel+' button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); cb(+b.dataset[attr]); }); }
+segInit('#seg','n',v=>{ nPlayers=v; renderEquip(); }); segInit('#segL','l',v=>cpuLevel=v); segInit('#segC','c',v=>K=v);
+$('#go').onclick=()=>{ $('#start').hidden=true; newGame(); };
+$('#r-again').onclick=()=>{ $('#result').hidden=true; leaveOnline(); $('#start').hidden=false; };
+
+function deckSummaryHTML(){ if(!SV) return ''; const L=myLoadout(), c=CHARS[L.ch];
+  return `${SV.test?'<div class="small" style="text-align:left">🧪 テストモード中（マイルームで自由に編成できます）</div>':''}<div class="decksum" style="--rc:${CLS_COL[c.cls]}"><span class="big">${c.ic}</span><div><b>${c.n}</b> <i class="rkb">${c.cls}</i> Lv${L.clv}<div>${L.pends.map(pendChip).join('')||'<small>ペンダントなし</small>'} ${DICE[L.dk].ic}</div></div><button class="btn ghost small openRoom2">🏠 マイルーム</button></div>`; }
+function renderEquip(){
+  const h=deckSummaryHTML()+'<div class="small" style="text-align:left;margin-top:4px">CPUのキャラ・ペンダントは「CPUの強さ」で決まります（EASY：C〜B／NORMAL：A〜A+／HARD：S〜S+）。</div>';
+  $('#equip').innerHTML=h; const lb=$('#lbDeck'); if(lb) lb.innerHTML=deckSummaryHTML();
+  document.querySelectorAll('.openRoom2').forEach(b=>b.onclick=()=>openRoom('deck'));
+  renderGoldBar();
+}
+/* ================= MY ROOM（育成） ================= */
+const SAVE_KEY='dt_save_v1';
+let SV=null;
+const uidGen=()=>Math.random().toString(36).slice(2,9);
+function newSave(){
+  const c1={u:uidGen(),id:'popo',lv:1,xp:0}, c2={u:uidGen(),id:'piyo',lv:1,xp:0};
+  const p1={u:uidGen(),id:'clover',r:'C',lv:1,xp:0}, p2={u:uidGen(),id:'feather',r:'C',lv:1,xp:0}, p3={u:uidGen(),id:'compass',r:'B',lv:1,xp:0};
+  return {v:1,gold:3000,mile:0,keys:0,light:{C:0,B:0,A:0,'A+':0},trans:0,dice:['normal'],cards:[c1,c2],pends:[p1,p2,p3],deck:{card:c1.u,pends:[p1.u,p2.u],dice:'normal'},wins:0,games:0};
+}
+function loadSave(){ try{ const j=localStorage.getItem(SAVE_KEY); SV=j?JSON.parse(j):newSave(); }catch(e){ SV=SV||newSave(); }
+  if(SV.test===undefined){ SV.test=true; SV.realGold=SV.gold; SV.gold=9999999; }
+  if(!SV.tdeck) SV.tdeck={ch:'sora',clv:30,dk:'star',pends:[{id:'lens',r:'S+',lv:7,sub:'sign'},{id:'feather',r:'S+',lv:7,sub:'gold'},{id:'vip',r:'S',lv:7,sub:null},{id:'rocket',r:'S',lv:7,sub:null}]}; if(!SV.cards.length) SV.cards.push({u:uidGen(),id:'piyo',lv:1,xp:0}); fixDeck(); }
+function saveSV(){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(SV)); }catch(e){} renderGoldBar(); }
+const cardBy=u=>SV.cards.find(c=>c.u===u), pendBy=u=>SV.pends.find(q=>q.u===u);
+function fixDeck(){
+  if(!cardBy(SV.deck.card)) SV.deck.card=SV.cards[0].u;
+  const n=SLOTS[CHARS[cardBy(SV.deck.card).id].cls];
+  SV.deck.pends=SV.deck.pends.filter(u=>pendBy(u)).slice(0,n);
+  if(!SV.dice.includes(SV.deck.dice)) SV.deck.dice='normal';
+}
+function myLoadout(){ if(SV&&SV.test){ const t=SV.tdeck; return {ch:t.ch,clv:t.clv,dk:t.dk,pends:t.pends.filter(q=>q&&q.id).map(q=>({id:q.id,r:q.r,lv:q.r==='S+'?7:q.lv,sub:q.r==='S+'?(q.sub||null):null}))}; } fixDeck(); const c=cardBy(SV.deck.card); return {ch:c.id,clv:c.lv,dk:SV.deck.dice,pends:SV.deck.pends.map(pendBy).filter(Boolean).map(q=>({id:q.id,r:q.r,lv:q.lv,sub:q.sub||null}))}; }
+function cpuLoadout(level){
+  const rk=[['C','B'],['A','A+'],['S','S+']][level]; const pool=CHAR_IDS.filter(id=>rk.includes(CHARS[id].cls));
+  const ch=pool[rand(pool.length)], cls=CHARS[ch].cls, clv=Math.max(1,Math.round(CAP[cls]*[.4,.7,1][level]));
+  const prk=[['C','B'],['B','A','A+'],['A+','S']][level], n=Math.min(SLOTS[cls],[1,2,4][level]), pends=[];
+  for(let i=0;i<n;i++){ const r=prk[rand(prk.length)], pool=GACHA_P.filter(id=>rankOK(id,r)&&!pends.some(x=>x.id===id)); pends.push({id:pool[rand(pool.length)],r,lv:[3,5,7][level],sub:null}); }
+  return {ch,clv,dk:level===2?'star':'normal',pends};
+}
+function loadoutText(p){ const c=CHARS[p.ch]; return (c?`${c.ic}${c.n}Lv${p.clv||1}`:'')+(p.pends||[]).map(q=>ITEMS[q.id]?ITEMS[q.id].ic:'').join('')+(DICE[p.dk]&&p.dk!=='normal'?DICE[p.dk].ic:''); }
+function rewardGold(me,win){
+  let g=win?600:150; g*=online?1.2:[.6,1,1.6][cpuLevel]; if(win&&winBonus>1) g*=1+(winBonus-1)*.25; g*=1+pv(me,'gold');
+  g=Math.round(g); SV.gold+=g; SV.games=(SV.games||0)+1; if(win) SV.wins=(SV.wins||0)+1; saveSV(); return g;
+}
+/* gacha */
+const CARD_RATE=[['C',35],['B',30],['A',20],['A+',10],['S',4],['S+',1]];
+const PEND_RATE=[['C',35],['B',30],['A',20],['A+',11],['S',4]];
+const PRICE={card:1000,pend:800};
+function pickRate(tbl){ let x=Math.random()*100; for(const [r,w] of tbl){ x-=w; if(x<=0) return r; } return tbl[0][0]; }
+function drawCard(r){ r=r||pickRate(CARD_RATE); const pool=CHAR_IDS.filter(id=>CHARS[id].cls===r); return {u:uidGen(),id:pool[rand(pool.length)],lv:1,xp:0}; }
+function drawPend(r){ r=r||pickRate(PEND_RATE); const pool=GACHA_P.filter(id=>rankOK(id,r)); return {u:uidGen(),id:pool[rand(pool.length)],r,lv:1,xp:0}; }
+function addMile(){ SV.mile++; if(SV.mile>=20){ SV.mile-=20; SV.keys++; } }
+/* card growth */
+const FEED_XP=[40,80,160,320,640,1280];
+const needXP=c=>Math.round((50+c.lv*25)*(1+ri(CHARS[c.id].cls)*.3));
+function cardMaxReward(c){
+  if(c.mx) return ''; c.mx=true; const ch=CHARS[c.id]; let msg='';
+  if(ch.sig){ SV.pends.push({u:uidGen(),id:ch.sig,r:'S',lv:1,xp:0}); msg+=`専用ペンダント「${ITEMS[ch.sig].ic}${ITEMS[ch.sig].n}」(S)を獲得！ `; }
+  if(ch.cls==='S+'){ SV.trans++; msg+='「✨超越の光」を獲得！'; }
+  return msg;
+}
+/* pendant growth */
+const pNeed=q=>(ri(q.r)+1)*2;
+/* ---------- UI ---------- */
+let roomTab='deck', selCard=null, selPend=null, roomMsgT='', gachaRes=[];
+function renderGoldBar(){ const t=SV?`💰 ${SV.gold.toLocaleString()} G　🔑×${SV.keys}　🎫 ${SV.mile}/20`:''; document.querySelectorAll('.goldbar').forEach(e=>e.textContent=t); }
+function roomMsg(t){ roomMsgT=t; const e=$('#roomMsg'); if(e) e.innerHTML=t; }
+function openRoom(tab){ loadSave(); roomTab=tab||roomTab; $('#room').hidden=false; renderRoom(); }
+function closeRoom(){ $('#room').hidden=true; fixDeck(); saveSV(); renderEquip(); }
+function cardTile(c,opts={}){ const ch=CHARS[c.id]; const inDeck=SV.deck.card===c.u;
+  return `<div class="tile ${opts.sel?'sel':''} ${opts.dim?'dim':''}" data-c="${c.u}" style="--rc:${CLS_COL[ch.cls]}"><span class="tic2">${ch.ic}</span><b class="rk2">${ch.cls}</b><span class="tn">${ch.n}</span><span class="tl">Lv${c.lv}${c.lv>=CAP[ch.cls]?' MAX':''}${inDeck?' 📌':''}</span></div>`; }
+function pendTile(q,opts={}){ const d=ITEMS[q.id]; const inDeck=SV.deck.pends.includes(q.u);
+  return `<div class="tile ${opts.sel?'sel':''} ${opts.dim?'dim':''}" data-p="${q.u}" style="--rc:${CLS_COL[q.r]}"><span class="tic2">${d.ic}</span><b class="rk2">${q.r}</b><span class="tn">${d.n}</span><span class="tl">Lv${q.lv}${q.sub?' ＋'+ITEMS[q.sub].ic:''}${inDeck?' 📌':''}</span></div>`; }
+const sortCards=a=>a.slice().sort((x,y)=>ri(CHARS[y.id].cls)-ri(CHARS[x.id].cls)||y.lv-x.lv);
+const sortPends=a=>a.slice().sort((x,y)=>ri(y.r)-ri(x.r)||y.lv-x.lv);
+function renderRoom(){
+  renderGoldBar();
+  document.querySelectorAll('#roomTabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===roomTab));
+  const R=$('#roomBody'); let h='';
+  if(roomTab==='deck'){
+    h+=`<div class="sec testbar"><label><input type="checkbox" id="testTgl" ${SV.test?'checked':''}> 🧪 <b>テストモード（すべて解放）</b></label><div class="small">オンのあいだは、全キャラ・全ペンダント・全サイコロを自由に組み合わせて使えます（ゴールドも使い放題）。オフにすると、ガチャや育成で手に入れたものだけで編成する通常モードに戻ります。</div></div>`;
+  }
+  if(roomTab==='deck'&&SV.test){
+    const t=SV.tdeck, ch=CHARS[t.ch], cap=CAP[ch.cls];
+    const opt=(arr,v)=>arr.map(([k,l])=>`<option value="${k}" ${k==v?'selected':''}>${l}</option>`).join('');
+    h+=`<div class="sec"><h4>🧑 キャラクター</h4><div class="hero" style="--rc:${CLS_COL[ch.cls]}"><span class="big">${ch.ic}</span><div>
+      <select id="tCh" class="tsel">${opt(CHAR_IDS.map(id=>[id,`${CHARS[id].ic} ${CHARS[id].n}（${CHARS[id].cls}）`]),t.ch)}</select>
+      レベル <select id="tLv" class="tsel">${opt(Array.from({length:cap},(_,i)=>[i+1,'Lv'+(i+1)]),Math.min(t.clv,cap))}</select>
+      <div class="statgrid">${STAT_N.map((s2,k)=>`<span>${s2}</span><b>${statAt(t.ch,k,Math.min(t.clv,cap))}</b>`).join('')}</div>${ch.sk?`<div class="skill">✨ 固有スキル：${skillDesc(t.ch)}</div>`:''}</div></div></div>`;
+    h+=`<div class="sec"><h4>📿 ペンダント（最大4個）</h4>${[0,1,2,3].map(k=>{ const q=t.pends[k]||{id:'',r:'S',lv:7,sub:null};
+      return `<div class="tslot"><select class="tsel" data-k="${k}" data-f="id"><option value="">（なし）</option>${opt(GACHA_P.map(id=>[id,ITEMS[id].ic+' '+ITEMS[id].n]),q.id)}</select>
+        <select class="tsel" data-k="${k}" data-f="r">${opt(RANKS.filter(r=>!q.id||rankOK(q.id,r)).map(r=>[r,r]),q.r)}</select>
+        ${q.r==='S+'?`<select class="tsel" data-k="${k}" data-f="sub"><option value="">サブ効果なし</option>${opt(SUBS.map(([id])=>[id,'サブ：'+subDesc(id)]),q.sub)}</select>`:`<select class="tsel" data-k="${k}" data-f="lv">${opt([1,2,3,4,5,6,7].map(n=>[n,'Lv'+n]),q.lv)}</select>`}
+        ${q.id?`<div class="small">${pendDesc({id:q.id,r:q.r,lv:q.r==='S+'?7:q.lv})}</div>`:''}</div>`; }).join('')}</div>`;
+    h+=`<div class="sec"><h4>🎲 サイコロ</h4><select id="tDk" class="tsel">${opt(DICE_IDS.map(d=>[d,DICE[d].ic+' '+DICE[d].n]),t.dk)}</select><div class="small">${DICE[t.dk].d}</div></div>`;
+  }
+  else if(roomTab==='deck'){
+    fixDeck(); const c=cardBy(SV.deck.card), ch=CHARS[c.id], n=SLOTS[ch.cls];
+    h+=`<div class="sec"><h4>🧑 使うキャラクター</h4><div class="hero" style="--rc:${CLS_COL[ch.cls]}"><span class="big">${ch.ic}</span><div><b>${ch.n}</b> <i class="rkb">${ch.cls}</i> Lv${c.lv}/${CAP[ch.cls]}<div class="statgrid">${STAT_N.map((s,k)=>`<span>${s}</span><b>${statAt(c.id,k,c.lv)}</b>`).join('')}</div>${ch.sk?`<div class="skill">✨ 固有スキル：${skillDesc(c.id)}</div>`:''}<div class="small">ペンダント装備枠：${n}個</div></div></div>
+      <div class="tiles">${sortCards(SV.cards).map(x=>cardTile(x,{sel:x.u===SV.deck.card})).join('')}</div></div>`;
+    h+=`<div class="sec"><h4>📿 ペンダント（${SV.deck.pends.length}/${n}）<small>タップで付け外し</small></h4><div class="tiles">${sortPends(SV.pends).map(q=>pendTile(q,{sel:SV.deck.pends.includes(q.u)})).join('')||'<span class="small">ペンダントがありません</span>'}</div>
+      <div class="small">${SV.deck.pends.map(pendBy).filter(Boolean).map(q=>`${ITEMS[q.id].ic}${ITEMS[q.id].n}(${q.r} Lv${q.lv})：${pendDesc(q)}${q.sub?'／サブ：'+subDesc(q.sub):''}`).join('<br>')}</div></div>`;
+    h+=`<div class="sec"><h4>🎲 サイコロ</h4><div class="tiles">${SV.dice.map(d=>`<div class="tile ${SV.deck.dice===d?'sel':''}" data-d="${d}" style="--rc:#2b2340"><span class="tic2">${DICE[d].ic}</span><span class="tn">${DICE[d].n}</span></div>`).join('')}</div><div class="small">${DICE[SV.deck.dice].d}</div></div>`;
+  }
+  if(roomTab==='card'){
+    const b=selCard&&cardBy(selCard);
+    h+=`<div class="sec"><h4>🧑 キャラクター強化 <small>強化するキャラを選択</small></h4><div class="tiles">${sortCards(SV.cards).map(x=>cardTile(x,{sel:x.u===selCard})).join('')}</div></div>`;
+    if(b){ const ch=CHARS[b.id], cap=CAP[ch.cls], isMax=b.lv>=cap;
+      h+=`<div class="sec"><div class="hero" style="--rc:${CLS_COL[ch.cls]}"><span class="big">${ch.ic}</span><div><b>${ch.n}</b> <i class="rkb">${ch.cls}</i> Lv${b.lv}/${cap}
+        ${isMax?'':`<div class="xpbar"><i style="width:${Math.min(100,b.xp/needXP(b)*100)}%"></i></div><div class="small">次のレベルまで ${needXP(b)-b.xp} EXP</div>`}
+        <div class="statgrid">${STAT_N.map((s,k)=>`<span>${s}</span><b>${statAt(b.id,k,b.lv)}<small>→${statAt(b.id,k,cap)}</small></b>`).join('')}</div>
+        ${ch.sk?`<div class="skill">✨ 固有スキル：${skillDesc(b.id)}</div>`:''}${ch.sig?`<div class="small">最大レベル報酬：専用ペンダント「${ITEMS[ch.sig].ic}${ITEMS[ch.sig].n}」${ch.cls==='S+'?'＋✨超越の光':''}${b.mx?'（受け取り済み）':''}</div>`:''}</div></div>`;
+      if(!isMax){ const mats=sortCards(SV.cards.filter(x=>x.u!==b.u&&x.u!==SV.deck.card));
+        h+=`<h4>素材にするキャラ <small>1体100G・15%で「GREAT」（経験値1.5倍）</small></h4><div class="tiles" id="matC">${mats.map(x=>cardTile(x)).join('')||'<span class="small">素材にできるキャラがいません（ガチャで入手）</span>'}</div>
+          <button class="btn primary small" id="doCE">選んだ素材で強化</button>`; }
+      else if(ch.cls!=='S+'){ const partners=SV.cards.filter(x=>x.u!==b.u&&CHARS[x.id].cls===ch.cls&&x.lv>=CAP[CHARS[x.id].cls]);
+        h+=`<h4>⬆️ クラスアップ合成 <small>最大レベルの同じクラス2体で、1つ上のクラスのキャラがランダムで手に入る</small></h4><div class="tiles" id="partC">${partners.map(x=>cardTile(x)).join('')||'<span class="small">合成相手（最大レベルの'+ch.cls+'クラス）がいません</span>'}</div>`; }
+      if(b.u!==SV.deck.card) h+=`<div style="margin-top:8px"><button class="btn ghost small" id="sellC">売却（${(ri(ch.cls)+1)*80*(1+Math.floor(b.lv/5))}G）</button></div>`;
+      h+=`</div>`; }
+  }
+  if(roomTab==='pend'){
+    const b=selPend&&pendBy(selPend);
+    h+=`<div class="sec"><h4>📿 ペンダント強化・合成 <small>対象を選択</small></h4><div class="tiles">${sortPends(SV.pends).map(q=>pendTile(q,{sel:q.u===selPend})).join('')}</div>
+      <div class="small">所持：材料の光 ${Object.entries(SV.light).map(([r,n])=>r+'×'+n).join('・')}　✨超越の光×${SV.trans}</div></div>`;
+    if(b){ const d=ITEMS[b.id], r=ri(b.r);
+      h+=`<div class="sec"><div class="hero" style="--rc:${CLS_COL[b.r]}"><span class="big">${d.ic}</span><div><b>${d.n}</b> <i class="rkb">${b.r}</i> Lv${b.lv}/7<div>${pendDesc(b)}</div>${b.sub?`<div class="skill">サブ効果：${ITEMS[b.sub].ic}${subDesc(b.sub)}</div>`:''}
+        ${b.lv<7?`<div class="xpbar"><i style="width:${b.xp/pNeed(b)*100}%"></i></div>`:''}</div></div>`;
+      if(b.lv<7){ const mats=sortPends(SV.pends.filter(q=>q.u!==b.u&&!SV.deck.pends.includes(q.u)));
+        h+=`<h4>素材にするペンダント <small>1個50G・15%でGREAT</small></h4><div class="tiles" id="matP">${mats.map(q=>pendTile(q)).join('')||'<span class="small">素材がありません</span>'}</div><button class="btn primary small" id="doPE">選んだ素材で強化</button>`; }
+      else {
+        if(r<=3){ const partners=SV.pends.filter(q=>q.u!==b.u&&q.r===b.r&&q.lv>=7);
+          h+=`<h4>🎲 ランダム合成 <small>Lv7の同ランク2個 → ${RANKS[r+1]}ランクのペンダントがランダムで1個</small></h4><div class="tiles" id="partP">${partners.map(q=>pendTile(q)).join('')||'<span class="small">合成相手（Lv7の'+b.r+'ランク）がいません</span>'}</div>`;
+          h+=`<h4>💡 固定合成 <small>材料の光（${b.r}）を使うと、種類はそのまま${RANKS[r+1]}ランクに</small></h4><button class="btn primary small" id="doLight" ${SV.light[b.r]>0?'':'disabled'}>材料の光で${RANKS[r+1]}にする（所持${SV.light[b.r]}）</button>`; }
+        if(r===4) h+=`<h4>✨ 超越 <small>Lv7のSペンダント＋超越の光でS+に（サブ効果がランダムで付く）</small></h4><button class="btn primary small" id="doTrans" ${SV.trans>0?'':'disabled'}>超越の光でS+にする（所持${SV.trans}）</button><div class="small">超越の光は、S+クラスのキャラを最大レベルにすると手に入ります。</div>`;
+      }
+      if(r===5){ const fod=SV.pends.filter(q=>q.u!==b.u&&q.r==='S'&&!SV.deck.pends.includes(q.u));
+        h+=`<h4>🔄 サブ効果の引き直し <small>Sペンダント1個を消費</small></h4><div class="tiles" id="rerollP">${fod.map(q=>pendTile(q)).join('')||'<span class="small">消費できるSペンダントがありません</span>'}</div>`; }
+      if(!SV.deck.pends.includes(b.u)) h+=`<div style="margin-top:8px"><button class="btn ghost small" id="sellP">売却（${(r+1)*50*b.lv}G）</button></div>`;
+      h+=`</div>`; }
+  }
+  if(roomTab==='gacha'){
+    const rt=t=>t.map(([r,w])=>`<span style="color:${CLS_COL[r]}">${r}</span> ${w}%`).join('　');
+    h+=`<div class="sec"><h4>🧑 キャラクターガチャ <small>1回 ${PRICE.card}G／10連 ${PRICE.card*9}G</small></h4><div class="small">提供割合：${rt(CARD_RATE)}</div>
+      <button class="btn primary small" data-g="card1">1回引く</button> <button class="btn primary small" data-g="card10">10連</button></div>
+      <div class="sec"><h4>📿 ペンダントガチャ <small>1回 ${PRICE.pend}G／10連 ${PRICE.pend*9}G</small></h4><div class="small">提供割合：${rt(PEND_RATE)}　（種類は${GACHA_P.length}種からランダム）</div>
+      <button class="btn primary small" data-g="pend1">1回引く</button> <button class="btn primary small" data-g="pend10">10連</button></div>
+      <div class="sec"><h4>🎫 ラッキーマイレージ <small>ガチャ1回で1マイル。20マイルで🔑1個、🔑5個でジャックポット</small></h4><div class="xpbar"><i style="width:${SV.mile/20*100}%"></i></div><div class="small">マイル ${SV.mile}/20　🔑×${SV.keys}</div>
+      <button class="btn primary small" data-g="jpC" ${SV.keys>=5?'':'disabled'}>🔑5個：Sキャラ確定</button> <button class="btn primary small" data-g="jpP" ${SV.keys>=5?'':'disabled'}>🔑5個：Sペンダント確定</button></div>
+      <div class="sec"><h4>結果</h4><div class="tiles">${gachaRes.map(x=>x.id&&CHARS[x.id]&&!x.r?cardTile(x):pendTile(x)).join('')||'<span class="small">まだ引いていません</span>'}</div></div>`;
+  }
+  if(roomTab==='shop'){
+    h+=`<div class="sec"><h4>💡 材料の光 <small>Lv7のペンダントを種類そのまま1ランク上げる</small></h4><div class="tiles">${['C','B','A','A+'].map((r,k)=>`<div class="tile" data-buy="light-${r}" style="--rc:${CLS_COL[r]}"><span class="tic2">💡</span><b class="rk2">${r}</b><span class="tn">${[500,1000,2000,4000][k]}G</span><span class="tl">所持${SV.light[r]}</span></div>`).join('')}</div></div>
+      <div class="sec"><h4>🎲 サイコロ</h4><div class="tiles">${DICE_IDS.filter(d=>d!=='normal').map(d=>`<div class="tile ${SV.dice.includes(d)?'dim':''}" data-buy="dice-${d}" style="--rc:#2b2340"><span class="tic2">${DICE[d].ic}</span><span class="tn">${DICE[d].n}</span><span class="tl">${SV.dice.includes(d)?'購入済み':DICE[d].price+'G'}</span></div>`).join('')}</div><div class="small">${DICE_IDS.filter(d=>d!=='normal').map(d=>DICE[d].ic+DICE[d].d).join('<br>')}</div></div>
+      <div class="sec"><h4>📊 記録</h4><div class="small">対戦 ${SV.games||0}回・勝利 ${SV.wins||0}回</div><button class="btn ghost small" id="resetSV">データを初期化</button></div>`;
+  }
+  h+=`<div id="roomMsg" class="roommsg">${roomMsgT}</div>`;
+  R.innerHTML=h; bindRoom();
+}
+function bindRoom(){
+  const R=$('#roomBody');
+  const tg=$('#testTgl'); if(tg) tg.onchange=()=>{ SV.test=tg.checked; if(SV.test){ SV.realGold=SV.gold; SV.gold=9999999; } else { SV.gold=SV.realGold!=null?SV.realGold:3000; } saveSV(); renderRoom(); };
+  if(roomTab==='deck'&&SV.test){
+    const t=SV.tdeck;
+    const tc=$('#tCh'); if(tc) tc.onchange=()=>{ t.ch=tc.value; t.clv=CAP[CHARS[t.ch].cls]; saveSV(); renderRoom(); };
+    const tl=$('#tLv'); if(tl) tl.onchange=()=>{ t.clv=+tl.value; saveSV(); renderRoom(); };
+    const td=$('#tDk'); if(td) td.onchange=()=>{ t.dk=td.value; saveSV(); renderRoom(); };
+    R.querySelectorAll('.tslot select').forEach(e=>e.onchange=()=>{ const k=+e.dataset.k, fld=e.dataset.f; t.pends[k]=t.pends[k]||{id:'',r:'S',lv:7,sub:null}; const q=t.pends[k];
+      if(fld==='id'&&e.value&&t.pends.some((x,j)=>j!==k&&x&&x.id===e.value)){ roomMsg('同じ種類のペンダントは1つまでです'); renderRoom(); return; }
+      q[fld]=fld==='lv'?+e.value:(e.value||null); if(fld==='id') q.id=e.value; if(q.id&&!rankOK(q.id,q.r)) q.r=minRank(q.id); if(q.r==='S+'){ q.lv=7; if(q.sub===undefined) q.sub=null; } saveSV(); roomMsg(''); renderRoom(); });
+    return;
+  }
+  if(roomTab==='deck'){
+    R.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{ SV.deck.card=e.dataset.c; fixDeck(); saveSV(); roomMsg(''); renderRoom(); });
+    R.querySelectorAll('[data-p]').forEach(e=>e.onclick=()=>{ const u=e.dataset.p, n=SLOTS[CHARS[cardBy(SV.deck.card).id].cls];
+      if(SV.deck.pends.includes(u)) SV.deck.pends=SV.deck.pends.filter(x=>x!==u);
+      else{ const q=pendBy(u); if(SV.deck.pends.map(pendBy).some(x=>x&&x.id===q.id)){ roomMsg('同じ種類のペンダントは1つまでです'); renderRoom(); return; }
+        if(SV.deck.pends.length>=n){ roomMsg(`装備枠がいっぱいです（このキャラは${n}個まで）`); renderRoom(); return; } SV.deck.pends.push(u); }
+      saveSV(); roomMsg(''); renderRoom(); });
+    R.querySelectorAll('[data-d]').forEach(e=>e.onclick=()=>{ SV.deck.dice=e.dataset.d; saveSV(); renderRoom(); });
+  }
+  if(roomTab==='card'){
+    R.querySelectorAll('.tiles:not(#matC):not(#partC) [data-c]').forEach(e=>e.onclick=()=>{ selCard=e.dataset.c; roomMsg(''); renderRoom(); });
+    R.querySelectorAll('#matC [data-c]').forEach(e=>e.onclick=()=>e.classList.toggle('sel'));
+    const ce=$('#doCE'); if(ce) ce.onclick=()=>{
+      const b=cardBy(selCard); const mats=[...R.querySelectorAll('#matC .sel')].map(e=>cardBy(e.dataset.c));
+      if(!mats.length){ roomMsg('素材を選んでください'); renderRoom(); return; }
+      const cost=100*mats.length; if(SV.gold<cost){ roomMsg('ゴールドが足りません'); renderRoom(); return; }
+      SV.gold-=cost; const great=Math.random()<.15; let xp=mats.reduce((s,m)=>s+FEED_XP[ri(CHARS[m.id].cls)]+m.lv*10,0); if(great) xp=Math.round(xp*1.5);
+      SV.cards=SV.cards.filter(c=>!mats.includes(c)); b.xp+=xp; const cap=CAP[CHARS[b.id].cls], lv0=b.lv;
+      while(b.lv<cap&&b.xp>=needXP(b)){ b.xp-=needXP(b); b.lv++; } let extra=''; if(b.lv>=cap){ b.xp=0; extra=cardMaxReward(b); }
+      saveSV(); roomMsg(`${great?'<b class="great">GREAT!!</b> ':''}経験値 +${xp}　Lv${lv0} → Lv${b.lv}${b.lv>=cap?'（MAX）':''} ${extra}`); renderRoom(); };
+    R.querySelectorAll('#partC [data-c]').forEach(e=>e.onclick=()=>{
+      const a=cardBy(selCard), b=cardBy(e.dataset.c); const nr=RANKS[ri(CHARS[a.id].cls)+1];
+      SV.cards=SV.cards.filter(c=>c!==a&&c!==b); const nc=drawCard(nr); SV.cards.push(nc); selCard=nc.u; fixDeck(); saveSV();
+      roomMsg(`⬆️ クラスアップ合成！ ${CHARS[nc.id].ic}${CHARS[nc.id].n}（${nr}）を獲得`); renderRoom(); });
+    const sc=$('#sellC'); if(sc) sc.onclick=()=>{ const b=cardBy(selCard), g=(ri(CHARS[b.id].cls)+1)*80*(1+Math.floor(b.lv/5)); SV.cards=SV.cards.filter(c=>c!==b); SV.gold+=g; selCard=null; saveSV(); roomMsg(`売却して ${g}G を獲得`); renderRoom(); };
+  }
+  if(roomTab==='pend'){
+    R.querySelectorAll('.tiles:not(#matP):not(#partP):not(#rerollP) [data-p]').forEach(e=>e.onclick=()=>{ selPend=e.dataset.p; roomMsg(''); renderRoom(); });
+    R.querySelectorAll('#matP [data-p]').forEach(e=>e.onclick=()=>e.classList.toggle('sel'));
+    const pe=$('#doPE'); if(pe) pe.onclick=()=>{
+      const b=pendBy(selPend); const mats=[...R.querySelectorAll('#matP .sel')].map(e=>pendBy(e.dataset.p));
+      if(!mats.length){ roomMsg('素材を選んでください'); renderRoom(); return; }
+      const cost=50*mats.length; if(SV.gold<cost){ roomMsg('ゴールドが足りません'); renderRoom(); return; }
+      SV.gold-=cost; const great=Math.random()<.15; let xp=mats.reduce((s,m)=>s+(ri(m.r)+1)*m.lv,0); if(great) xp=Math.ceil(xp*1.5);
+      SV.pends=SV.pends.filter(q=>!mats.includes(q)); b.xp+=xp; const lv0=b.lv; while(b.lv<7&&b.xp>=pNeed(b)){ b.xp-=pNeed(b); b.lv++; } if(b.lv>=7) b.xp=0;
+      saveSV(); roomMsg(`${great?'<b class="great">GREAT!!</b> ':''}経験値 +${xp}　Lv${lv0} → Lv${b.lv}`); renderRoom(); };
+    R.querySelectorAll('#partP [data-p]').forEach(e=>e.onclick=()=>{
+      const a=pendBy(selPend), b=pendBy(e.dataset.p); const np=drawPend(RANKS[ri(a.r)+1]);
+      SV.pends=SV.pends.filter(q=>q!==a&&q!==b); SV.deck.pends=SV.deck.pends.filter(u=>u!==a.u&&u!==b.u); SV.pends.push(np); selPend=np.u; saveSV();
+      roomMsg(`🎲 ランダム合成！ ${ITEMS[np.id].ic}${ITEMS[np.id].n}（${np.r}）を獲得`); renderRoom(); });
+    const lt=$('#doLight'); if(lt) lt.onclick=()=>{ const b=pendBy(selPend); if(SV.light[b.r]<1) return; SV.light[b.r]--; b.r=RANKS[ri(b.r)+1]; b.lv=1; b.xp=0; saveSV(); roomMsg(`💡 固定合成！ ${ITEMS[b.id].n} が ${b.r} ランクになりました`); renderRoom(); };
+    const tr=$('#doTrans'); if(tr) tr.onclick=()=>{ const b=pendBy(selPend); if(SV.trans<1) return; SV.trans--; b.r='S+'; b.lv=7; b.sub=SUBS[rand(SUBS.length)][0]; saveSV(); roomMsg(`✨ 超越！ S+になり、サブ効果「${subDesc(b.sub)}」が付きました`); renderRoom(); };
+    R.querySelectorAll('#rerollP [data-p]').forEach(e=>e.onclick=()=>{ const b=pendBy(selPend), f=pendBy(e.dataset.p); SV.pends=SV.pends.filter(q=>q!==f); let s; do{ s=SUBS[rand(SUBS.length)][0]; }while(s===b.sub); b.sub=s; saveSV(); roomMsg(`🔄 サブ効果が「${subDesc(s)}」になりました`); renderRoom(); });
+    const sp=$('#sellP'); if(sp) sp.onclick=()=>{ const b=pendBy(selPend), g=(ri(b.r)+1)*50*b.lv; SV.pends=SV.pends.filter(q=>q!==b); SV.gold+=g; selPend=null; saveSV(); roomMsg(`売却して ${g}G を獲得`); renderRoom(); };
+  }
+  if(roomTab==='gacha'){
+    R.querySelectorAll('[data-g]').forEach(e=>e.onclick=()=>{ const g=e.dataset.g;
+      if(g==='jpC'||g==='jpP'){ if(SV.keys<5) return; SV.keys-=5; const it=g==='jpC'?drawCard('S'):drawPend('S'); (g==='jpC'?SV.cards:SV.pends).push(it); gachaRes=[it]; saveSV(); roomMsg('🎉 ジャックポット！'); renderRoom(); return; }
+      const kind=g.startsWith('card')?'card':'pend', n=g.endsWith('10')?10:1, cost=PRICE[kind]*(n===10?9:1);
+      if(SV.gold<cost){ roomMsg('ゴールドが足りません（対戦で勝つと増えます）'); renderRoom(); return; }
+      SV.gold-=cost; gachaRes=[]; for(let i=0;i<n;i++){ const it=kind==='card'?drawCard():drawPend(); (kind==='card'?SV.cards:SV.pends).push(it); gachaRes.push(it); addMile(); }
+      const best=gachaRes.reduce((m,x)=>Math.max(m,ri(x.r||CHARS[x.id].cls)),0); saveSV(); roomMsg(best>=4?`🎉 ${RANKS[best]}ランクが出ました！`:'ガチャを引きました'); renderRoom(); });
+  }
+  if(roomTab==='shop'){
+    R.querySelectorAll('[data-buy]').forEach(e=>e.onclick=()=>{ const [k,v]=e.dataset.buy.split('-');
+      if(k==='light'){ const price=[500,1000,2000,4000][['C','B','A','A+'].indexOf(v)]; if(SV.gold<price){ roomMsg('ゴールドが足りません'); renderRoom(); return; } SV.gold-=price; SV.light[v]++; roomMsg(`材料の光（${v}）を購入`); }
+      else { if(SV.dice.includes(v)) return; const price=DICE[v].price; if(SV.gold<price){ roomMsg('ゴールドが足りません'); renderRoom(); return; } SV.gold-=price; SV.dice.push(v); roomMsg(`${DICE[v].n}を購入`); }
+      saveSV(); renderRoom(); });
+    const rs=$('#resetSV'); if(rs) rs.onclick=async()=>{ const ok=await ask('データを初期化','育成データ（キャラ・ペンダント・ゴールド）がすべて消えて最初の状態に戻ります。よろしいですか？',[{label:'やめる',value:false},{label:'初期化する',value:true,primary:true}]); if(ok){ SV=newSave(); saveSV(); selCard=selPend=null; gachaRes=[]; roomMsg('初期化しました'); renderRoom(); } };
+  }
+}
+document.querySelectorAll('#roomTabs button').forEach(b=>b.onclick=()=>{ roomTab=b.dataset.t; roomMsg(''); renderRoom(); });
+$('#roomClose').onclick=closeRoom;
+document.querySelectorAll('.openRoom').forEach(b=>b.onclick=()=>openRoom('deck'));
+loadSave();
+
+/* ================= ONLINE ================= */
+function snapshot(){
+  return {status:'play', seq:lastSeq, host:online.hostUid, K, round, turnIdx, gameOver, winner:winnerId, reason:winReason, bonus:winBonus,
+    olyCity, olyMul, olyCount, fxSeq, fx:fxList.slice(-12), dice:{id:diceId,a:lastDice[0],b:lastDice[1]},
+    log:logList.slice(-60), mg:{coin:mgHist.coin.slice(-10),pk:mgHist.pk.slice(-10)},
+    cells:cells.map(c=>({o:c.owner,v:c.v,bl:c.bl,h:c.h,lm:c.lm,i:c.inv,s:c.visits,f:c.fest})),
+    players:players.map(p=>({n:p.name,c:p.color,u:p.uid,money:p.money,pos:p.pos,laps:p.laps,alive:p.alive,island:p.island,travel:p.travel,card:p.card,dk:p.dk,ch:p.ch,clv:p.clv||1,pends:p.pends||[],fr:!!p.fr,fc:!!p.fc,fv:!!p.fv,bt:!!p.bt,fe:!!p.fe,fm:!!p.fm}))};
+}
+function applySnapshot(st){
+  K=st.K||1; round=st.round; turnIdx=st.turnIdx; olyCity=st.olyCity; olyMul=st.olyMul; olyCount=st.olyCount;
+  gameOver=!!st.gameOver; winnerId=st.winner; winReason=st.reason||''; winBonus=st.bonus||1; fxSeq=st.fxSeq||0; fxList=(st.fx||[]).slice();
+  st.cells.forEach((a,i)=>{ const c=cells[i]; c.owner=a.o==null?null:a.o; c.v=!!a.v; c.bl=!!a.bl; c.h=!!a.h; c.lm=!!a.lm; c.inv=a.i||0; c.visits=a.s||0; c.fest=!!a.f; });
+  players=st.players.map((q,i)=>({id:i,name:q.n,color:q.c,mark:'',uid:q.u,human:true,money:q.money,pos:q.pos,laps:q.laps,alive:q.alive,island:q.island,travel:q.travel,card:q.card||null,dk:q.dk||'normal',ch:q.ch||null,clv:q.clv||1,pends:(q.pends||[]).map(x=>({...x})),fr:!!q.fr,fc:!!q.fc,fv:!!q.fv,bt:!!q.bt,fe:!!q.fe,fm:!!q.fm}));
+  logList=(st.log||[]).slice(); renderLog();
+  if(st.mg){ mgHist.coin=st.mg.coin.slice(); mgHist.pk=st.mg.pk.slice(); }
+}
+function scheduleSync(){ if(syncTimer) return; syncTimer=setTimeout(()=>{ syncTimer=null; syncNow(); },160); }
+async function syncNow(){
+  if(!online) return;
+  if(syncing){ syncDirty=true; return; }
+  syncing=true;
+  try{ lastSeq++; await online.db.doc('games/'+online.code).set(snapshot()); }
+  catch(e){ console.warn(e); setMsg('⚠️ 通信に失敗しました'); }
+  syncing=false;
+  if(syncDirty){ syncDirty=false; await syncNow(); }
+}
+async function flushSync(){ clearTimeout(syncTimer); syncTimer=null; while(syncing) await sleep(40); await syncNow(); while(syncing) await sleep(40); }
+function playFx(st){
+  for(const e of (st.fx||[])){
+    if(e.id<=lastFxSeen) continue; lastFxSeen=e.id; const d=e.d||{};
+    if(e.k==='toast') toast(d.h,d.ms);
+    else if(e.k==='float') floatAt(d.i,d.t,d.b||undefined);
+    else if(e.k==='cert'&&players[d.p]&&players[d.f]) showCert(players[d.p],cells[d.c],d.cost,players[d.f]);
+    else if(e.k==='pop'&&players[d.p]) popProc(players[d.p],d.ic,d.n,d.t);
+  }
+  if(st.dice&&st.dice.id!==lastDiceId){ lastDiceId=st.dice.id; showDice(st.dice.a,st.dice.b); bigNum(st.dice.a+st.dice.b); }
+}
+function onGameSnap(snap){
+  if(!snap.exists){ if(online&&!online.host&&!started) $('#lbNote').textContent='部屋が見つかりません'; return; }
+  const st=snap.data();
+  if(st.status!=='play') return;
+  if(turnRunning) return;
+  if(started&&st.seq<=lastSeq) return;
+  const first=!started; started=true; lastSeq=st.seq;
+  if(first){ parLeft=3+pv((st.players||[]).map(q=>({ch:q.ch,pends:q.pends,uid:q.u})).find(q=>q.uid===online.uid),'parity'); lastFxSeen=st.fxSeq||0; lastDiceId=st.dice?st.dice.id:0; diceId=lastDiceId; $('#lobby').hidden=true; $('#start').hidden=true; $('#par').style.visibility='visible'; document.querySelector('.hdr-r').style.visibility='hidden'; }
+  online.hostUid=st.host; online.host=st.host===online.uid;
+  applySnapshot(st); diceId=Math.max(diceId,lastDiceId); render(); playFx(st);
+  if(st.gameOver){ $('#roll').disabled=true; $('#roll').textContent='ゲーム終了'; setTimeout(showResult,600); return; }
+  const p=cur();
+  if(isMe(p)&&p.alive){ const key=st.round+'-'+st.turnIdx; if(key!==myTurnKey){ myTurnKey=key; runMyTurn(); } }
+  else waitingUI();
+}
+function waitingUI(){
+  const p=cur(); if(!p) return;
+  $('#roll').disabled=true; $('#roll').textContent=`${p.name} のターン`;
+  const me=players.find(isMe);
+  setMsg(me&&!me.alive?'💥 あなたは破産しました（観戦中）':me?'相手のプレイを待っています…':'👀 観戦中');
+}
+async function runMyTurn(){
+  turnRunning=true; render();
+  try{ if(navigator.vibrate) navigator.vibrate(150); }catch(e){}
+  await toast('<b>🎲 あなたのターン！</b>',800);
+  try{ await turn(cur()); }catch(e){ console.error(e); }
+  if(!gameOver) advanceTurn();
+  render(); await flushSync();
+  turnRunning=false; render();
+  if(!gameOver) waitingUI();
+}
+function advanceTurn(){
+  const n=players.length; let i=turnIdx;
+  for(let k=0;k<n;k++){ i=(i+1)%n; if(i===0){ round++; log(`── TURN ${round} ──`); } if(players[i].alive) break; }
+  turnIdx=i;
+}
+$('#skipBtn').onclick=async()=>{
+  const p=cur(); if(!online||!online.host||!p) return;
+  const ok=await ask('⏭ 手番をスキップ',`${p.name} の手番を飛ばして次の人に進めますか？<br><small>通信が切れたなどで止まったときに使ってください。</small>`,[{label:'やめる',value:false},{label:'スキップ',value:true,primary:true}]);
+  if(!ok) return;
+  turnRunning=true; log(`⏭ ホストが ${p.name} の手番をスキップ`); advanceTurn(); render(); await flushSync(); turnRunning=false; render();
+  const q=cur(); if(isMe(q)&&q.alive){ myTurnKey=round+'-'+turnIdx; runMyTurn(); } else waitingUI();
+};
+
+/* lobby */
+const CODE_CH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let seats=[];
+function onNote(t){ $('#onNote').textContent=t; }
+function loadNick(){ try{ return localStorage.getItem('dt_nick')||''; }catch(e){ return ''; } }
+function saveNick(v){ try{ localStorage.setItem('dt_nick',v); }catch(e){} }
+/* ---------- P2P transport (PeerJS) : no account needed ---------- */
+const P2P_PREFIX='dicetycoon-v1-';
+const PEER_OPTS={debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}};
+function getUid(){ if(window.__dtUid) return window.__dtUid; const mk=()=>'u'+Math.random().toString(36).slice(2,10); try{ let u=localStorage.getItem('dt_uid'); if(!u){ u=mk(); localStorage.setItem('dt_uid',u); } return u; }catch(e){ return window.__dtUid||(window.__dtUid=mk()); } }
+const clone=o=>JSON.parse(JSON.stringify(o));
+function makeStore(){ const st={data:{},ls:[]}; st.apply=(p,v)=>{ if(v==null) delete st.data[p]; else st.data[p]=v; st.notify(); }; st.notify=()=>st.ls.slice().forEach(l=>l(st.data)); return st; }
+function makeDb(store,write){
+  const snap=(path)=>{ const d=store.data[path]; return {id:path.split('/').pop(),exists:!!d,data:()=>d?clone(d):undefined,metadata:{fromCache:false,hasPendingWrites:false}}; };
+  const sub=(fn)=>{ store.ls.push(fn); setTimeout(()=>fn(store.data),0); return ()=>{ const k=store.ls.indexOf(fn); if(k>=0) store.ls.splice(k,1); }; };
+  const doc=(path)=>({id:path.split('/').pop(),path,
+    get:async()=>snap(path),
+    set:async(d)=>write(path,clone(d)),
+    update:async(d)=>{ const c=store.data[path]; if(!c) throw {code:'invalid_argument'}; write(path,Object.assign(clone(c),clone(d))); },
+    delete:async()=>write(path,null),
+    onSnapshot:(next)=>{ let last; return sub(data=>{ const j=JSON.stringify(data[path]||null); if(j===last) return; last=j; next(snap(path)); }); },
+    collection:(p)=>col(path+'/'+p)});
+  const col=(path,order)=>({path,doc:(id)=>doc(path+'/'+id),orderBy:(f)=>col(path,f),
+    get:async()=>qs(path,order),
+    onSnapshot:(next)=>{ let last; return sub(()=>{ const q=qs(path,order); const j=JSON.stringify(q.docs.map(d=>[d.id,d.data()])); if(j===last) return; last=j; next(q); }); }});
+  const qs=(path,order)=>{ const pre=path+'/'; let docs=Object.keys(store.data).filter(k=>k.startsWith(pre)&&!k.slice(pre.length).includes('/')).map(snap); if(order) docs.sort((a,b)=>(a.data()[order]||0)-(b.data()[order]||0)); return {docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:{fromCache:false,hasPendingWrites:false}}; };
+  return {doc,collection:(p)=>col(p)};
+}
+function p2pAvailable(){ if(typeof Peer==='undefined'){ onNote('通信ライブラリを読み込めませんでした。インターネット接続を確認してページを開き直してください。'); return false; } return true; }
+function hostRoom(code){
+  return new Promise((res,rej)=>{
+    const peer=new Peer(P2P_PREFIX+code,PEER_OPTS); const store=makeStore(); const conns=new Set(); let ok=false;
+    const write=(path,val)=>{ store.apply(path,val); for(const c of conns){ if(c.open) try{ c.send({t:'put',path,val}); }catch(e){} } };
+    peer.on('open',()=>{ ok=true; res({db:makeDb(store,write),uid:getUid(),peer}); });
+    peer.on('connection',c=>{
+      c.on('open',()=>{ conns.add(c); c.send({t:'full',data:store.data}); });
+      c.on('data',m=>{ if(m&&m.t==='put') write(m.path,m.val); });
+      c.on('close',()=>conns.delete(c)); c.on('error',()=>conns.delete(c));
+    });
+    peer.on('disconnected',()=>{ try{ peer.reconnect(); }catch(e){} });
+    peer.on('error',e=>{ if(!ok) rej(e&&e.type||'error'); else console.warn(e); });
+  });
+}
+function joinP2P(code){
+  return new Promise((res,rej)=>{
+    const peer=new Peer(undefined,PEER_OPTS); const store=makeStore(); let conn=null, done=false;
+    const write=async(path,val)=>{ if(!conn) throw {code:'unavailable'}; if(!conn.open) await new Promise((r,j)=>{ conn.on('open',r); setTimeout(()=>j({code:'unavailable'}),8000); }); conn.send({t:'put',path,val}); };
+    peer.on('open',()=>{
+      conn=peer.connect(P2P_PREFIX+code,{reliable:true});
+      conn.on('data',m=>{ if(!m) return;
+        if(m.t==='full'){ store.data=m.data||{}; store.notify(); if(!done){ done=true; res({db:makeDb(store,write),uid:getUid(),peer}); } }
+        else if(m.t==='put') store.apply(m.path,m.val); });
+      conn.on('close',()=>{ if(done) setMsg('⚠️ 親機（部屋を作った人）との接続が切れました'); });
+    });
+    peer.on('error',e=>{ if(!done){ done=true; rej(e&&e.type||'error'); } });
+    setTimeout(()=>{ if(!done){ done=true; try{peer.destroy();}catch(e){} rej('timeout'); } },15000);
+  });
+}
+function nickOrWarn(){ const n=$('#nick').value.trim(); if(!n){ onNote('名前を入力してください'); $('#nick').focus(); return null; } saveNick(n); return n; }
+$('#mkRoom').onclick=async()=>{
+  const n=nickOrWarn(); if(!n||!p2pAvailable()) return;
+  onNote('部屋を準備中…');
+  let c=null, code='';
+  for(let tries=0;tries<4&&!c;tries++){
+    code=Array.from({length:4},()=>CODE_CH[rand(CODE_CH.length)]).join('');
+    try{ c=await hostRoom(code); }catch(e){ if(e!=='unavailable-id'){ onNote('部屋を作れませんでした（'+e+'）。通信環境を確認してください。'); return; } }
+  }
+  if(!c){ onNote('部屋を作れませんでした。もう一度お試しください。'); return; }
+  await c.db.doc('games/'+code).set({status:'lobby',host:c.uid,K:onlineK,created:Date.now(),seq:0});
+  onNote(''); enterRoom(c,code,n,true);
+};
+$('#joinBtn').onclick=async()=>{
+  const n=nickOrWarn(); if(!n||!p2pAvailable()) return; const code=$('#codeIn').value.trim().toUpperCase();
+  if(code.length!==4){ onNote('4文字の部屋コードを入力してください'); return; }
+  onNote('部屋に接続中…');
+  let c;
+  try{ c=await joinP2P(code); }
+  catch(e){ onNote(e==='peer-unavailable'||e==='timeout'?'部屋が見つかりません。コードと、部屋を作った人がページを開いたままかを確認してください。':'接続できませんでした（'+e+'）'); return; }
+  const g=await c.db.doc('games/'+code).get();
+  if(!g.exists){ onNote('部屋が見つかりません。'); return; }
+  onNote(''); enterRoom(c,code,n,g.data().host===c.uid,g.data());
+};
+async function enterRoom(c,code,nick,host,gdata){
+  online={db:c.db,uid:c.uid,peer:c.peer,code,host,hostUid:host?c.uid:(gdata&&gdata.host),unsubs:[],nick};
+  started=false; lastSeq=0; myTurnKey=''; resultShown=false; turnRunning=false;
+  const st=gdata&&gdata.status;
+  if(st!=='play'){
+    try{ await c.db.doc(`games/${code}/seats/${c.uid}`).set({name:nick,ld:myLoadout(),ts:Date.now()}); }
+    catch(e){ onNote('参加できませんでした。通信環境を確認してください。'); online=null; return; }
+    $('#start').hidden=true; $('#lobby').hidden=false; $('#lbCode').textContent=code;
+    renderEquip();
+  } else { $('#start').hidden=true; setMsg('ゲームに再接続中…'); }
+  online.unsubs.push(c.db.collection(`games/${code}/seats`).orderBy('ts').onSnapshot(q=>{ seats=q.docs.map(d=>({uid:d.id,...d.data()})); renderLobby(); },e=>console.warn(e)));
+  online.unsubs.push(c.db.doc('games/'+code).onSnapshot(onGameSnap,e=>{ console.warn(e); setMsg('⚠️ 接続が切れました。ページを開き直してください。'); }));
+}
+function renderLobby(){
+  if(!online||started) return;
+  const list=seats.slice(0,4);
+  $('#lbSeats').innerHTML=list.map((s2,i)=>`<li style="--pc:${PRESETS[i].color}"><span>${i+1}. ${escapeHtml(s2.name)}${s2.uid===online.uid?' （あなた）':''}${s2.uid===online.hostUid?' 👑':''}</span><span>${s2.ld&&CHARS[s2.ld.ch]?CHARS[s2.ld.ch].ic+'Lv'+(s2.ld.clv||1):''} ${s2.ld?(s2.ld.pends||[]).map(q=>ITEMS[q.id]?ITEMS[q.id].ic:'').join(''):''}</span></li>`).join('')
+    +(seats.length>4?`<li style="--pc:#999"><span>ほか ${seats.length-4} 人は観戦</span><span></span></li>`:'');
+  $('#lbStart').hidden=!online.host;
+  $('#lbStart').disabled=list.length<2;
+  $('#lbNote').textContent=online.host?(list.length<2?'2人以上集まったら開始できます':'全員そろったら「ゲーム開始」を押してください'):'ホストが開始するのを待っています…';
+}
+function escapeHtml(t){ return String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+$('#lbLeave').onclick=async()=>{ if(online&&!started) await online.db.doc(`games/${online.code}/seats/${online.uid}`).delete().catch(()=>{}); leaveOnline(); $('#lobby').hidden=true; $('#start').hidden=false; };
+$('#lbStart').onclick=async()=>{
+  if(!online||!online.host) return;
+  const list=seats.slice(0,4); if(list.length<2) return;
+  $('#lbStart').disabled=true;
+  resultShown=false; winnerId=null; winReason=''; logList=[]; warned.clear(); gameOver=false; round=1; turnIdx=0; parity=''; parLeft=3;
+  olyCity=null; olyMul=1; olyCount=0; fxList=[]; fxSeq=0; diceId=0; lastDice=[1,1];
+  mgHist.coin=[]; mgHist.pk=[];
+  K=onlineK; cells=freshCells();
+  const cityIdx=cells.map((c,i)=>i).filter(i=>cells[i].t==='city');
+  for(let k=0;k<3;k++){ const j=cityIdx.splice(rand(cityIdx.length),1)[0]; cells[j].fest=true; }
+  players=list.map((s2,i)=>({id:i,name:String(s2.name||'プレイヤー').slice(0,10),color:PRESETS[i].color,mark:'',uid:s2.uid,human:true,money:START_MONEY,pos:0,laps:0,alive:true,island:0,travel:false,card:null,
+    ...sanLoadout(s2.ld),fr:false,fc:false,fv:false,bt:false,fe:false,fm:false}));
+  players.forEach(p=>p.money=startMoney(p)); monoSeen.clear(); winBonus=1;
+  turnRunning=true;
+  log(`🎲 オンライン対戦開始！ 所持金 ${fmt(START_MONEY)}　🎉 フェスティバル：${cells.filter(c=>c.fest).map(c=>c.n).join('・')}`);
+  log('🎒 装備：'+players.map(p=>p.name+' '+loadoutText(p)).join('／'));
+  turnRunning=false; lastSeq=1;
+  try{ await online.db.doc('games/'+online.code).set(snapshot()); }catch(e){ $('#lbNote').textContent='開始できませんでした（'+(e&&e.code||'error')+'）'; $('#lbStart').disabled=false; }
+};
+function sanLoadout(ld){ ld=ld||{}; const ch=CHARS[ld.ch]?ld.ch:'piyo'; const cap=CAP[CHARS[ch].cls];
+  return {ch,clv:Math.max(1,Math.min(cap,+ld.clv||1)),dk:DICE[ld.dk]?ld.dk:'normal',pends:(Array.isArray(ld.pends)?ld.pends:[]).filter(q=>q&&ITEMS[q.id]&&!ITEMS[q.id].sub&&RANKS.includes(q.r)&&rankOK(q.id,q.r)).slice(0,4).map(q=>({id:q.id,r:q.r,lv:Math.max(1,Math.min(7,+q.lv||1)),sub:SUBV[q.sub]!=null?q.sub:null}))}; }
+function leaveOnline(){ document.querySelector('.hdr-r').style.visibility=''; if(online){ online.unsubs.forEach(u=>{ try{u();}catch(e){} }); if(online.peer) try{ online.peer.destroy(); }catch(e){} } online=null; started=false; turnRunning=false; seats=[]; }
+let onlineK=1;
+document.querySelectorAll('#segMode button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#segMode button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const on=b.dataset.m==='online'; $('#cpuPanel').hidden=on; $('#cpuPanel2').hidden=on; $('#onPanel').hidden=!on; document.querySelector('.rules').hidden=on; });
+segInit('#segC2','c',v=>onlineK=v);
+$('#nick').value=loadNick();
+(function(){ const h=(location.hash||'').replace('#',''); if(/^room-[A-Z0-9]{4}$/i.test(h)){ $('#codeIn').value=h.slice(5).toUpperCase(); document.querySelector('#segMode button[data-m="online"]').click(); } })();
+
+renderEquip();
+buildBoard(); cells=freshCells();
+players=PRESETS.map((p,i)=>({...p,id:i,money:START_MONEY,pos:0,laps:0,alive:true,island:0,travel:false,card:null}));
+showDice(3,5); render();
+</script>
+</body>
+</html>
