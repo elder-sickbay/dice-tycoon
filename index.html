@@ -6,7 +6,7 @@
 <title>ダイス・タイクーン（オンライン対戦）</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=Shippori+Mincho+B1:wght@800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#1b2142;--cream:#fff8ec;--ink:#2b2340;--muted:#7a7090;--gold:#f5b630;--gold2:#ffd56b;--line:#e7dcc6;--B:min(96vw,820px,calc((100vh - 200px)/.62));--S:calc(var(--B)*.69)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -43,9 +43,20 @@ main{display:flex;gap:14px;justify-content:center;align-items:flex-start;padding
 .flag{position:absolute;top:1px;right:1px;font-size:max(8px,calc(var(--S)/9*.13));line-height:1;font-weight:800}
 .oly{position:absolute;top:16%;left:0;right:0;background:rgba(245,182,48,.92);color:#3b2a00;font-size:max(7px,calc(var(--S)/9*.11));font-weight:800}
 .tk{position:absolute;top:18%;left:0;right:0;display:flex;justify-content:center;gap:0;pointer-events:none;transform-style:preserve-3d}
-.tok{display:block;transform:rotateZ(-45deg) rotateX(-52deg);transform-origin:50% 100%;margin:0 -2px}
-.pawn{display:grid;place-items:start center;width:max(12px,calc(var(--S)/9*.3));height:max(18px,calc(var(--S)/9*.46));border-radius:50% 50% 35% 35%/60% 60% 40% 40%;background:radial-gradient(circle at 35% 25%,#fff8 0 18%,transparent 19%),var(--pc);border:2px solid #fff;box-shadow:0 3px 4px rgba(0,0,0,.45);color:#fff;font-size:9px;font-weight:800;padding-top:2px;font-style:normal}
+.tok{position:relative;display:block;transform:rotateZ(-45deg) rotateX(-52deg);transform-origin:50% 100%;margin:0 -4px}
+.tk.n3 .tok,.tk.n4 .tok{margin:0 -7px}
+.tok.off{opacity:.3;transition:opacity .25s}
+.tok.on{opacity:1;z-index:2;transition:opacity .25s}
+.rings i:not(.cur){opacity:.45}
+.pawn{position:relative;display:flex;flex-direction:column;align-items:center;font-style:normal}
+.pawn svg{display:block;width:max(21px,calc(var(--S)/9*.44));height:max(35px,calc(var(--S)/9*.74));overflow:visible;filter:drop-shadow(0 2px 1.5px rgba(0,0,0,.55))}
+.pawn .ptag{display:block;margin-bottom:1px;padding:0 3px;border-radius:5px;background:var(--pc);color:#fff;border:1.5px solid #fff;font-size:max(7px,calc(var(--S)/9*.12));font-weight:900;line-height:1.25;white-space:nowrap}
 .pawn.cur{animation:bob .8s ease-in-out infinite}
+.pawn.cur .ptag{box-shadow:0 0 0 2px #ffd400}
+.rings{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);display:flex;gap:1px;pointer-events:none}
+.rings i{display:block;width:max(9px,calc(var(--S)/9*.2));height:max(9px,calc(var(--S)/9*.2));border-radius:50%;background:var(--pc);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);opacity:.95}
+.rings i.cur{animation:ringp 1s ease-out infinite}
+@keyframes ringp{0%{box-shadow:0 0 0 0 var(--pc)}100%{box-shadow:0 0 0 8px transparent}}
 @keyframes bob{50%{transform:translateY(-6px)}}
 body.picking .cell:not(.nopick){animation:pick 1s ease-in-out infinite}
 @keyframes pick{50%{box-shadow:inset 0 0 0 3px #f5b630}}
@@ -170,6 +181,14 @@ body.short #ctrl .btn.primary{font-size:13px;padding:8px 4px}
 body.short .card{max-height:calc(var(--H)*.96);padding:12px}
 body.short #mg-stage{height:calc(var(--H)*.44)!important}
 body.short .glab{font-size:8.5px}
+body.short main{grid-template-rows:auto auto 1fr;grid-template-areas:"pa stage pb" "pc stage pd" "log stage ctrl"}
+body.short .pc:nth-child(n){align-self:start}
+body.short .pc{padding:4px 7px}
+body.short .pc-card{display:none}
+body.short .pc-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.short .pc-money{font-size:14px}
+body.short #ctrl{align-self:end;padding:6px 5px;gap:4px}
+body.short #msg{font-size:10px;line-height:1.2}
 body.land .title-big{font-size:30px}
 .pk .result{top:auto;bottom:14px}
 .potbox{font-weight:800;font-size:clamp(15px,2.6vw,22px);background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.25);border-radius:10px;padding:2px 14px;margin-top:-4px}
@@ -290,6 +309,74 @@ table.tt tr.built td{background:color-mix(in srgb,var(--oc,#3fae5a) 18%,#fff)}
 .lvp i{width:max(5px,calc(var(--S)/9*.1));height:max(5px,calc(var(--S)/9*.1));border-radius:50%;border:1.5px solid var(--own,#999);background:#fff}
 .lvp i.on{background:var(--own,#999)}
 .lvp b{font-size:max(8px,calc(var(--S)/9*.14));line-height:1;color:var(--own)}
+#quitBtn{position:absolute;left:4px;top:4px;z-index:6;width:34px;height:34px;border-radius:50%;border:2px solid #fff6;background:#1d2346cc;color:#fff;font-size:16px;line-height:1;padding:0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+/* ==== Casino theme (brown & gold) ==== */
+:root{--bg:#1e120b;--cream:#f8efdc;--ink:#2b1c12;--muted:#8a7258;--gold:#c9a24a;--gold2:#f0d78c;--line:#d8c39a;--wood1:#5a3519;--wood2:#3a210f;--felt:#4a2c18}
+body{background:
+  radial-gradient(ellipse at 50% -10%,rgba(240,215,140,.16),transparent 55%),
+  radial-gradient(circle at 0% 100%,rgba(120,60,25,.45),transparent 50%),
+  radial-gradient(circle at 100% 100%,rgba(90,40,15,.45),transparent 50%),
+  repeating-linear-gradient(135deg,rgba(255,255,255,.018) 0 2px,transparent 2px 9px),
+  linear-gradient(180deg,#2a1810,#140b06)}
+.logo,.title-big{font-family:"Shippori Mincho B1","Hiragino Mincho ProN",serif}
+.logo span,.title-big{background:linear-gradient(180deg,#fff3c8 0%,#e6c46a 45%,#a8792a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:.06em}
+.title-big{filter:drop-shadow(0 2px 0 rgba(60,30,5,.35))}
+/* board: walnut frame + gold rim */
+#board{background:linear-gradient(135deg,#7a4a24,#4e2c14 60%,#3a200e);box-shadow:inset 0 0 0 2px #e2c47a,inset 0 0 0 4px #5a3519,1px 1px 0 #6b4020,2px 2px 0 #63391c,3px 3px 0 #5b3318,4px 4px 0 #532d15,5px 5px 0 #4c2812,6px 6px 0 #45230f,7px 7px 0 #3f1f0d,8px 8px 0 #391b0b,9px 9px 0 #331809,10px 10px 0 #2d1508,22px 22px 40px rgba(0,0,0,.7)}
+.cell{background:linear-gradient(160deg,#fffaf0,#f3e6cb);box-shadow:inset 0 0 0 1px #c9a86a}
+.cell.corner{background:radial-gradient(circle at 50% 40%,#fff6dc,#e9cf92);box-shadow:inset 0 0 0 2px #b8893a}
+.lake{background:
+  radial-gradient(ellipse at 50% 45%,rgba(240,215,140,.14),transparent 60%),
+  repeating-linear-gradient(45deg,rgba(255,230,170,.05) 0 1px,transparent 1px 14px),
+  repeating-linear-gradient(-45deg,rgba(255,230,170,.05) 0 1px,transparent 1px 14px),
+  radial-gradient(ellipse at 40% 35%,#6a3f22,#4a2a15 55%,#2f1a0c);
+  box-shadow:inset 0 0 0 3px #d8b867,inset 0 0 0 6px #3a200e,inset 0 0 0 7px #a8792a,inset 0 0 40px rgba(0,0,0,.55)}
+.lake span{color:rgba(240,215,140,.22)}
+#center{text-shadow:0 2px 6px rgba(0,0,0,.8)}
+.potbox{background:linear-gradient(180deg,rgba(30,15,6,.75),rgba(15,8,3,.75));border:2px solid #c9a24a;color:#f6e3a8;box-shadow:0 0 14px rgba(201,162,74,.35)}
+.round{color:#e8d3a0}
+/* control panel: leather with gold stitching */
+#ctrl,#mg-stage{background:linear-gradient(165deg,#4d2e18,#2a170b);border:1px solid #8a6230;box-shadow:inset 0 0 0 3px #2a170b,inset 0 0 0 4px rgba(226,196,122,.45),0 8px 24px rgba(0,0,0,.5)}
+.gauge{background:#1a0e06;box-shadow:inset 0 0 0 2px rgba(226,196,122,.35)}
+#gfill{background:linear-gradient(90deg,#7a9a6a,#e0b84e,#b8322e)}
+.par button,.gc-r,.gc-bet{background:#5e3a1e;color:#ecd9b0}
+.par button.on{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#2b1a05}
+.btn.primary{background:linear-gradient(180deg,#f6e2a0,#d4ad55 55%,#b48a36);color:#2b1a05;box-shadow:0 4px 0 #7a5418,inset 0 1px 0 rgba(255,255,255,.6)}
+.btn.primary:active{box-shadow:0 1px 0 #7a5418}
+.btn.primary:disabled{background:#5b4636;color:#bba78c;box-shadow:0 4px 0 #3a2a1d}
+.btn.ghost{background:#efe2c6;color:var(--ink);box-shadow:inset 0 0 0 1px #c9a86a}
+/* cards / panels */
+.panel,.pc{box-shadow:inset 0 0 0 1px rgba(168,121,42,.35),0 4px 14px rgba(0,0,0,.35)}
+.pc.active{box-shadow:0 0 0 3px var(--gold),0 0 18px rgba(240,215,140,.45)}
+.overlay{background:rgba(20,10,4,.7)}
+.card{background:linear-gradient(180deg,#fbf4e4,#f2e5c8);border:2px solid #c9a24a;box-shadow:inset 0 0 0 4px #fbf4e4,inset 0 0 0 5px rgba(168,121,42,.5),0 20px 60px rgba(0,0,0,.6)}
+.dcard .bk{background:repeating-linear-gradient(45deg,#5a3519 0 10px,#6e4322 10px 20px);border:4px solid #c9a24a;color:#f0d78c}
+.xpbar i{background:linear-gradient(90deg,#c9a24a,#f0d78c)}
+#quitBtn{background:#2a170bcc;border-color:#c9a24a99}
+#emoBtn{position:absolute;right:4px;top:4px;z-index:6;width:34px;height:34px;border-radius:50%;border:2px solid #c9a24a99;background:#2a170bcc;font-size:18px;line-height:1;padding:0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+#emoPal{position:absolute;right:4px;top:42px;z-index:7;display:grid;grid-template-columns:repeat(4,38px);gap:4px;padding:6px;border-radius:12px;background:linear-gradient(165deg,#4d2e18,#2a170b);border:1px solid #c9a24a;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+#emoPal button{width:38px;height:38px;border:0;border-radius:9px;background:#f8efdc;font-size:21px;padding:0;line-height:1}
+#emoPal button.tx{grid-column:span 2;width:auto;font-size:12px;font-weight:800;color:#2b1c12}
+.emob{position:absolute;right:6px;top:4px;z-index:9;background:#fff;border:2px solid var(--pc,#c9a24a);border-radius:16px 16px 16px 4px;padding:2px 8px;font-size:26px;line-height:1.15;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:emo 2.6s ease-out forwards;pointer-events:none;white-space:nowrap}
+.emob.tx{font-size:13px;color:#2b1c12;padding:5px 9px}
+@keyframes emo{0%{transform:scale(.2);opacity:0}12%{transform:scale(1.15);opacity:1}20%{transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+#ticker{position:absolute;left:50%;top:4px;transform:translateX(-50%);z-index:5;width:min(66%,520px);height:26px;display:flex;align-items:center;gap:6px;border-radius:999px;background:linear-gradient(180deg,rgba(40,22,10,.92),rgba(20,10,4,.92));border:1.5px solid #c9a24a;color:#f6e3a8;font-weight:800;font-size:12.5px;overflow:hidden;padding:0 10px 0 4px;box-shadow:0 3px 10px rgba(0,0,0,.45)}
+#ticker>b{flex:none;background:linear-gradient(180deg,#f0d78c,#b48a36);color:#2b1a05;border-radius:999px;padding:1px 8px;font-size:11px}
+#ticker .tk-in{flex:1;overflow:hidden;white-space:nowrap;position:relative;height:100%}
+#tickTxt{position:absolute;top:50%;left:100%;transform:translateY(-50%);white-space:nowrap}
+#tickTxt.run{animation:tick 7s linear forwards}
+@keyframes tick{from{left:100%}to{left:0;transform:translate(-100%,-50%)}}
+#r-box{margin:8px 0 4px}
+.bonusbox{background:linear-gradient(180deg,#4d2e18,#2a170b)!important;border:1px solid #c9a24a;color:#f6e3a8}
+#r-box h4{font-size:14px;margin-bottom:6px}
+.boxes{display:flex;gap:10px;justify-content:center}
+.rbox{width:84px;height:92px;border-radius:12px;border:2px solid #c9a24a;background:linear-gradient(160deg,#6e4322,#3a200e);color:#f0d78c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:34px;cursor:pointer;box-shadow:0 4px 0 #2a170b;transition:transform .15s}
+.rbox:hover{transform:translateY(-3px)}
+.rbox small{font-size:11px;font-weight:800;line-height:1.2;text-align:center}
+.rbox.open{background:linear-gradient(160deg,#fffaf0,#efdcb0);color:#2b1c12;cursor:default;animation:pop .25s ease-out}
+.rbox.open.got{box-shadow:0 0 0 3px #f0d78c,0 0 18px rgba(240,215,140,.8)}
+.rbox.open:not(.got){opacity:.55}
+.boxnote{font-size:11px;color:var(--muted);margin-top:5px}
 </style>
 </head>
 <body>
@@ -300,6 +387,9 @@ table.tt tr.built td{background:color-mix(in srgb,var(--oc,#3fae5a) 18%,#fff)}
 <main>
   <div id="play">
   <div id="stage">
+    <button id="quitBtn" title="やめる">🚪</button>
+    <button id="emoBtn" title="スタンプ">😊</button><div id="emoPal" hidden></div>
+    <div id="ticker" hidden><b>速報</b><div class="tk-in"><span id="tickTxt"></span></div></div>
     <div id="board"><div class="lake"></div></div>
     <div id="center">
       <div class="round" id="round"></div><div class="potbox" id="potbox"></div><div class="warn" id="warn"></div>
@@ -350,9 +440,9 @@ table.tt tr.built td{background:color-mix(in srgb,var(--oc,#3fae5a) 18%,#fff)}
   <ul class="rank" id="lbSeats"></ul>
   <div class="lbdeckwrap"><div class="small" style="text-align:left">あなたのデッキ（マイルームで編成したもの）</div><div id="lbDeck"></div></div>
   <div id="lbNote" class="sub" style="margin-top:8px"></div>
-  <div class="btns" style="justify-content:center"><button class="btn ghost" id="lbLeave">退出</button><button class="btn primary" id="lbStart">ゲーム開始</button></div>
+  <div class="btns" style="justify-content:center"><button class="btn ghost openRoom3">🏠 マイルーム</button><button class="btn ghost" id="lbLeave">退出</button><button class="btn primary" id="lbStart">ゲーム開始</button></div>
 </div></div>
-<div class="overlay" id="result" hidden><div class="card" style="text-align:center"><div style="font-size:46px">🏆</div><h2 id="r-title"></h2><div class="sub" id="r-reason"></div><ul class="rank" id="r-rank"></ul><button class="btn primary" id="r-again">もう一度遊ぶ</button></div></div>
+<div class="overlay" id="result" hidden><div class="card" style="text-align:center"><div style="font-size:46px">🏆</div><h2 id="r-title"></h2><div class="sub" id="r-reason"></div><div id="r-box"></div><ul class="rank" id="r-rank"></ul><div class="btns" style="justify-content:center"><button class="btn ghost" id="r-exit">タイトルへ</button><button class="btn primary" id="r-again">もう一度遊ぶ</button></div></div></div>
 
 <div class="overlay" id="start"><div class="card">
   <div style="font-size:38px">🎲🏙️💰</div>
@@ -674,8 +764,11 @@ function render(){
       }
       const ol=el.querySelector('.oly'); ol.hidden=olyCity!==i; ol.textContent=`🏅×${olyMul}`;
     }
-    el.querySelector('.tk').innerHTML=players.filter(p=>p.alive&&p.pos===i)
-      .map(p=>`<span class="tok"><i class="pawn ${p===cur()&&!gameOver?'cur':''}" style="--pc:${p.color}">${isMe(p)?'★':''}</i></span>`).join('');
+    const here=players.filter(p=>p.alive&&p.pos===i), tkEl=el.querySelector('.tk');
+    tkEl.className='tk n'+here.length;
+    tkEl.innerHTML=here.map(p=>`<span class="tok ${p===cur()&&!gameOver?'on':'off'}"><i class="pawn ${p===cur()&&!gameOver?'cur':''}" style="--pc:${p.color}"><b class="ptag">${isMe(p)?'YOU':escapeText(String(p.name).slice(0,3))}</b>${PAWN_SVG}</i></span>`).join('');
+    let rg=el.querySelector('.rings'); if(!rg){ rg=document.createElement('div'); rg.className='rings'; el.appendChild(rg); }
+    rg.innerHTML=here.map(p=>`<i class="${p===cur()&&!gameOver?'cur':''}" style="--pc:${p.color}"></i>`).join('');
   });
   const ranked=[...players].filter(x=>x.alive).sort((a,b)=>assets(b)-assets(a));
   $('#players').innerHTML=players.map((p,i)=>`
@@ -685,7 +778,7 @@ function render(){
       <div class="pc-sub">総資産 ${fmt(assets(p))}・物件 ${props(p).length}・${p.laps+1}周目</div>
       <div class="pc-item" title="${CHARS[p.ch]?charDesc(p.ch,p.clv):''}">${CHARS[p.ch]?`<span class="chb">${CHARS[p.ch].ic} ${CHARS[p.ch].n} <i>${CHARS[p.ch].cls}</i> <small>Lv${p.clv||1}</small></span><br>`:''}${p.bt?'💢':''}${(p.pends||[]).map(pendChip).join('')}${p.dk&&DICE[p.dk]&&p.dk!=='normal'?` <small>${DICE[p.dk].ic}${DICE[p.dk].n}</small>`:''}</div>
       <div class="pc-card">${p.card?CARD_INFO[p.card][0]:'<span style="color:var(--muted);font-weight:400">カードなし</span>'}</div>
-      <div class="pc-badges">${p.island?'🌴'+p.island:''}${p.travel?'✈️':''}</div>
+      <div class="pc-badges">${p.island?'🌴'+p.island:''}${p.travel?'✈️':''}</div>${emoHTML(p)}
     </div>`).join('');
   $('#round').textContent=`ターン ${round}`;
   $('#potbox').textContent=fmt(players.filter(x=>x.alive).reduce((s,x)=>s+assets(x),0));
@@ -702,7 +795,46 @@ function showDice(a,b){
 }
 function setMsg(t){ $('#msg').innerHTML=t; }
 let logList=[];
-function renderLog(){ $('#log').innerHTML=logList.slice(-90).reverse().map(l=>`<div style="--c:${l.c||'#ccc'}">${l.t}</div>`).join(''); }
+let tickSeen=null, tickQ=[], tickBusy=false;
+const TICK_KEYS=['🎆','💥','⚔️','🏅','🗼','🏆'];
+function tickerCheck(){
+  const last=[...logList].reverse().find(e=>e.t.includes('<b>')&&TICK_KEYS.some(k=>e.t.startsWith(k)));
+  const id=last?last.t:''; if(tickSeen===null){ tickSeen=id; return; }
+  if(id&&id!==tickSeen){ tickSeen=id; tickQ.push(last.t.replace(/<[^>]+>/g,'')); runTicker(); if(!online) cpuReact(last.t); }
+}
+async function runTicker(){
+  if(tickBusy) return; tickBusy=true; const tk=$('#ticker'), tx=$('#tickTxt');
+  while(tickQ.length){ tk.hidden=false; tx.textContent=tickQ.shift(); tx.classList.remove('run'); tx.offsetWidth; tx.classList.add('run'); await sleep(7000); }
+  tk.hidden=true; tickBusy=false;
+}
+const EMOS=['😆','😭','😡','😱','👍','🙏','💸','🎉','よろしく！','ナイス！','ごめん…','まだまだ！'];
+const emoState={};
+function emoHTML(p){ const s2=emoState[p.id]; if(!s2) return ''; const el=Date.now()-s2.at; if(el>2600) return '';
+  return `<div class="emob${s2.e.length>2?' tx':''}" style="--pc:${p.color};animation-delay:-${el}ms">${escapeText(s2.e)}</div>`; }
+function showEmote(p,e){
+  if(!p) return; emoState[p.id]={e,at:Date.now()};
+  const card=document.querySelectorAll('#players .pc')[p.id]; if(!card) return;
+  card.querySelectorAll('.emob').forEach(x=>x.remove()); card.insertAdjacentHTML('beforeend',emoHTML(p));
+  setTimeout(()=>{ const s2=emoState[p.id]; if(s2&&Date.now()-s2.at>=2600){ delete emoState[p.id]; card.isConnected&&card.querySelectorAll('.emob').forEach(x=>x.remove()); document.querySelectorAll('#players .pc')[p.id]?.querySelectorAll('.emob').forEach(x=>x.remove()); } },2650);
+}
+let emoLast={}, emoReady=false, emoCool=0;
+function sendEmote(e){
+  if(Date.now()<emoCool) return; emoCool=Date.now()+1500; $('#emoPal').hidden=true;
+  const me=players.find(isMe); showEmote(me,e);
+  if(online) online.db.doc(`games/${online.code}/seats/${online.uid}`).update({emo:{e,t:Date.now()}}).catch(()=>{});
+}
+function emoFromSeats(list){
+  for(const st of list){ if(!st.emo) continue; const prev=emoLast[st.uid]; emoLast[st.uid]=st.emo.t;
+    if(!emoReady||prev===st.emo.t||st.uid===online.uid) continue; if(prev!==undefined&&st.emo.t<prev) continue;
+    showEmote(players.find(p=>p.uid===st.uid),String(st.emo.e).slice(0,8)); }
+  emoReady=true;
+}
+function cpuReact(t){
+  const cpus=players.filter(p=>p.alive&&!p.human); if(!cpus.length||Math.random()<.45) return;
+  const p=cpus[rand(cpus.length)], mine=t.includes(p.name);
+  setTimeout(()=>showEmote(p,mine?['😆','🎉','👍'][rand(3)]:['😱','😭','😡','まだまだ！'][rand(4)]),700+rand(900));
+}
+function renderLog(){ tickerCheck(); $('#log').innerHTML=logList.slice(-90).reverse().map(l=>`<div style="--c:${l.c||'#ccc'}">${l.t}</div>`).join(''); }
 function log(t,p){ if(online&&!amWriter()) return; logList.push({t,c:p?p.color:''}); if(logList.length>120) logList.splice(0,logList.length-120); renderLog(); }
 async function toast(html,ms=1100){ pushFx('toast',{h:html,ms}); const t=$('#toast'); t.innerHTML=html; t.classList.add('show'); await sleep(D(ms)); t.classList.remove('show'); await sleep(110); }
 
@@ -1263,6 +1395,15 @@ let winBonus=1;
 function endGame(w,reason,bonus){
   if(gameOver) return; gameOver=true; winnerId=w.id; winReason=reason; winBonus=bonus||1; render(); showResult();
 }
+const PAWN_SVG=`<svg viewBox="0 0 24 40"><g stroke="#fff" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+<path d="M8.5 27 L7.5 38 M15.5 27 L16.5 38" stroke="#fff" stroke-width="5.4"/><path d="M8.5 27 L7.5 38 M15.5 27 L16.5 38" stroke="#2b2f3a" stroke-width="3.2"/>
+<path d="M6 17 L2.5 26 M18 17 L21.5 26" stroke="#fff" stroke-width="5"/><path d="M6 17 L2.5 26 M18 17 L21.5 26" stroke="var(--pc)" stroke-width="2.8"/>
+<path d="M6 14.5 Q12 12 18 14.5 L19 29 L5 29 Z" fill="var(--pc)"/>
+<circle cx="12" cy="7.2" r="6" fill="#ffdcb8"/>
+<path d="M6.2 6.6 Q7 0.8 12 1 Q17 0.8 17.8 6.6 Q12 4.2 6.2 6.6Z" fill="var(--pc)" stroke-width="1.1"/></g>
+<circle cx="9.8" cy="8.2" r=".95" fill="#222"/><circle cx="14.2" cy="8.2" r=".95" fill="#222"/>
+<path d="M10.3 10.6 Q12 11.8 13.7 10.6" fill="none" stroke="#c0504a" stroke-width=".8" stroke-linecap="round"/>
+<path d="M9 18 L15 18" stroke="#ffffff88" stroke-width="1.2"/></svg>`;
 function escapeText(t){ return String(t).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); }
 function showResult(){
   if(resultShown) return; resultShown=true;
@@ -1272,7 +1413,9 @@ function showResult(){
   $('#r-reason').innerHTML=escapeText(reason)+(winBonus>1?`<div class="bonusbox">独占ボーナス <b>×${winBonus}</b><br>獲得スコア <b>${fmt(assets(w)*winBonus)}</b></div>`:`<div class="bonusbox">獲得スコア <b>${fmt(assets(w))}</b></div>`);
   const rank=[...players].sort((a,b)=>((b===w)-(a===w))||(b.alive-a.alive)||(assets(b)-assets(a)));
   $('#r-rank').innerHTML=rank.map((p,i)=>`<li style="--pc:${p.color}"><span>${['🥇','🥈','🥉','4位'][i]} ${p.name}</span><span>${p.alive?fmt(assets(p)):'破産'}</span></li>`).join('');
+  $('#r-again').textContent=online?'🔁 同じ部屋でもう一度':'🔁 もう一度（同じ設定）'; $('#r-exit').textContent=online?'🚪 退出する':'🏠 タイトルへ';
   const me=players.find(isMe); if(me&&SV){ const g=rewardGold(me,w===me); $('#r-reason').insertAdjacentHTML('beforeend',`<div class="bonusbox" style="background:#5a3d00">💰 ゴールド <b>+${g.toLocaleString()} G</b><br><small>マイルームでガチャ・強化に使えます</small></div>`); }
+  $('#r-box').innerHTML=''; if(me&&SV) rewardBoxes(w===me);
   setTimeout(()=>{ $('#modal').hidden=true; $('#mini').hidden=true; $('#result').hidden=false; },600);
 }
 
@@ -1333,7 +1476,38 @@ document.querySelectorAll('#segOri button').forEach(b=>{ b.classList.toggle('on'
 layout();
 function tryLandscape(){ try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} }
 $('#go').onclick=()=>{ tryLandscape(); $('#start').hidden=true; newGame(); };
-$('#r-again').onclick=()=>{ $('#result').hidden=true; leaveOnline(); $('#start').hidden=false; };
+$('#r-again').onclick=()=>{ $('#result').hidden=true; if(online) backToLobby(); else newGame(); };
+$('#r-exit').onclick=async()=>{ $('#result').hidden=true; await exitOnline(); gameId++; $('#start').hidden=false; };
+$('#emoPal').innerHTML=EMOS.map(e=>`<button class="${e.length>2?'tx':''}">${e}</button>`).join('');
+$('#emoPal').querySelectorAll('button').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); sendEmote(b.textContent); });
+$('#emoBtn').onclick=ev=>{ ev.stopPropagation(); $('#emoPal').hidden=!$('#emoPal').hidden; };
+document.addEventListener('click',ev=>{ if(!ev.target.closest('#emoPal,#emoBtn')) $('#emoPal').hidden=true; });
+function rewardBoxes(win){
+  const gb=win?[900,1200,1500][rand(3)]:[250,350,500][rand(3)];
+  const pool=win?[{k:'gold',v:gb,ic:'💰',t:`${gb.toLocaleString()} G`},{k:'keys',v:1,ic:'🔑',t:'ガチャのカギ ×1'},{k:'mile',v:5,ic:'🎫',t:'マイル +5'}]
+               :[{k:'gold',v:gb,ic:'💰',t:`${gb.toLocaleString()} G`},{k:'mile',v:2,ic:'🎫',t:'マイル +2'},Math.random()<.25?{k:'keys',v:1,ic:'🔑',t:'ガチャのカギ ×1'}:{k:'gold',v:Math.round(gb/2),ic:'🪙',t:`${Math.round(gb/2).toLocaleString()} G`}];
+  const boxes=shuffleArr(pool); let done=false, left=10;
+  $('#r-box').innerHTML=`<h4>🎁 報酬ボックスを1つ選ぼう</h4><div class="boxes">${boxes.map((b,i)=>`<div class="rbox" data-i="${i}">🎁<small>?</small></div>`).join('')}</div><div class="boxnote" id="boxnote">選択しないと <b id="boxsec">10</b> 秒後に自動で選択されます</div>`;
+  const pick=i=>{ if(done) return; done=true; clearInterval(tm); const b=boxes[i];
+    if(b.k==='gold') SV.gold+=b.v; else if(b.k==='keys') SV.keys+=b.v; else { for(let n=0;n<b.v;n++) addMile(); }
+    saveSV(); renderGoldBar();
+    document.querySelectorAll('#r-box .rbox').forEach((el,j)=>{ el.classList.add('open'); if(j===i) el.classList.add('got'); el.innerHTML=`${boxes[j].ic}<small>${boxes[j].t}</small>`; });
+    $('#boxnote').innerHTML=`<b>${b.ic} ${b.t}</b> を獲得しました！`; };
+  document.querySelectorAll('#r-box .rbox').forEach(el=>el.onclick=()=>pick(+el.dataset.i));
+  const tm=setInterval(()=>{ if(done) return clearInterval(tm); if($('#result').hidden) return; left--; const e=$('#boxsec'); if(e) e.textContent=left; if(left<=0) pick(rand(3)); },1000);
+}
+$('#quitBtn').onclick=async()=>{
+  const ok=await ask(online?'🚪 部屋から退出':'🏠 タイトルへ戻る',online?'この部屋から退出しますか？<br><small>対戦中に退出すると、あなたの手番はホストがスキップします。</small>':'対戦をやめてタイトルに戻りますか？',[{label:'続ける',value:false},{label:online?'退出する':'タイトルへ',value:true,primary:true}]);
+  if(!ok) return; gameId++; gameOver=true; rollResolver=null; await exitOnline(); $('#result').hidden=true; $('#start').hidden=false; };
+async function exitOnline(){ if(!online) return; try{ await online.db.doc(`games/${online.code}/seats/${online.uid}`).delete(); }catch(e){} leaveOnline(); }
+function backToLobby(){
+  if(!online) return;
+  started=false; turnRunning=false; myTurnKey=''; lastSeq=0; resultShown=false; gameOver=false; winnerId=null; drawCtx=null; online.draw=null; rollResolver=null;
+  $('#result').hidden=true; $('#draw').hidden=true; $('#modal').hidden=true; $('#mini').hidden=true;
+  $('#lobby').hidden=false; $('#lbCode').textContent=online.code; $('#lbStart').disabled=false;
+  online.db.doc(`games/${online.code}/seats/${online.uid}`).update({ld:myLoadout(),pick:null,did:null}).catch(()=>{});
+  renderEquip(); renderLobby();
+}
 
 function deckSummaryHTML(){ if(!SV) return ''; const L=myLoadout(), c=CHARS[L.ch];
   return `${SV.test?'<div class="small" style="text-align:left">🧪 テストモード中（マイルームで自由に編成できます）</div>':''}<div class="decksum" style="--rc:${CLS_COL[c.cls]}"><span class="big">${c.ic}</span><div><b>${c.n}</b> <i class="rkb">${c.cls}</i> Lv${L.clv}<div>${L.pends.map(pendChip).join('')||'<small>ペンダントなし</small>'} ${DICE[L.dk].ic}</div></div><button class="btn ghost small openRoom2">🏠 マイルーム</button></div>`; }
@@ -1400,7 +1574,7 @@ let roomTab='deck', selCard=null, selPend=null, roomMsgT='', gachaRes=[];
 function renderGoldBar(){ const t=SV?`💰 ${SV.gold.toLocaleString()} G　🔑×${SV.keys}　🎫 ${SV.mile}/20`:''; document.querySelectorAll('.goldbar').forEach(e=>e.textContent=t); }
 function roomMsg(t){ roomMsgT=t; const e=$('#roomMsg'); if(e) e.innerHTML=t; }
 function openRoom(tab){ loadSave(); roomTab=tab||roomTab; $('#room').hidden=false; renderRoom(); }
-function closeRoom(){ $('#room').hidden=true; fixDeck(); saveSV(); renderEquip(); }
+function closeRoom(){ $('#room').hidden=true; fixDeck(); saveSV(); renderEquip(); if(online&&!started) online.db.doc(`games/${online.code}/seats/${online.uid}`).update({ld:myLoadout()}).catch(()=>{}); }
 function cardTile(c,opts={}){ const ch=CHARS[c.id]; const inDeck=SV.deck.card===c.u;
   return `<div class="tile ${opts.sel?'sel':''} ${opts.dim?'dim':''}" data-c="${c.u}" style="--rc:${CLS_COL[ch.cls]}"><span class="tic2">${ch.ic}</span><b class="rk2">${ch.cls}</b><span class="tn">${ch.n}</span><span class="tl">Lv${c.lv}${c.lv>=CAP[ch.cls]?' MAX':''}${inDeck?' 📌':''}</span></div>`; }
 function pendTile(q,opts={}){ const d=ITEMS[q.id]; const inDeck=SV.deck.pends.includes(q.u);
@@ -1609,8 +1783,9 @@ function playFx(st){
 function onGameSnap(snap){
   if(!snap.exists){ if(online&&!online.host&&!started) $('#lbNote').textContent='部屋が見つかりません'; return; }
   const st=snap.data();
-  if(st.status==='draw'){ if(!started){ online.draw=st; online.hostUid=st.host; online.host=st.host===online.uid; renderDrawOnline(); } return; }
+  if(st.status==='draw'){ if(started&&gameOver&&st.did!==(online.lastDid||'')) backToLobby(); online.lastDid=st.did; if(!started){ online.draw=st; online.hostUid=st.host; online.host=st.host===online.uid; renderDrawOnline(); } return; }
   if(st.status!=='play') return;
+  if(!started&&st.gameOver) return;
   if(turnRunning) return;
   if(started&&st.seq<=lastSeq) return;
   const first=!started; started=true; lastSeq=st.seq;
@@ -1737,13 +1912,14 @@ async function enterRoom(c,code,nick,host,gdata){
   online={db:c.db,uid:c.uid,peer:c.peer,code,host,hostUid:host?c.uid:(gdata&&gdata.host),unsubs:[],nick};
   started=false; lastSeq=0; myTurnKey=''; resultShown=false; turnRunning=false;
   const st=gdata&&gdata.status;
-  if(st!=='play'){
+  if(st!=='play'||gdata.gameOver){
     try{ await c.db.doc(`games/${code}/seats/${c.uid}`).set({name:nick,ld:myLoadout(),ts:Date.now()}); }
     catch(e){ onNote('参加できませんでした。通信環境を確認してください。'); online=null; return; }
     $('#start').hidden=true; $('#lobby').hidden=false; $('#lbCode').textContent=code;
     renderEquip();
   } else { $('#start').hidden=true; setMsg('ゲームに再接続中…'); }
-  online.unsubs.push(c.db.collection(`games/${code}/seats`).orderBy('ts').onSnapshot(q=>{ seats=q.docs.map(d=>({uid:d.id,...d.data()})); renderLobby(); renderDrawOnline(); },e=>console.warn(e)));
+  emoLast={}; emoReady=false;
+  online.unsubs.push(c.db.collection(`games/${code}/seats`).orderBy('ts').onSnapshot(q=>{ seats=q.docs.map(d=>({uid:d.id,...d.data()})); renderLobby(); renderDrawOnline(); emoFromSeats(seats); },e=>console.warn(e)));
   online.unsubs.push(c.db.doc('games/'+code).onSnapshot(onGameSnap,e=>{ console.warn(e); setMsg('⚠️ 接続が切れました。ページを開き直してください。'); }));
 }
 function renderLobby(){
@@ -1756,7 +1932,8 @@ function renderLobby(){
   $('#lbNote').textContent=online.host?(list.length<2?'2人以上集まったら開始できます':'全員そろったら「ゲーム開始」を押してください'):'ホストが開始するのを待っています…';
 }
 function escapeHtml(t){ return String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-$('#lbLeave').onclick=async()=>{ if(online&&!started) await online.db.doc(`games/${online.code}/seats/${online.uid}`).delete().catch(()=>{}); leaveOnline(); $('#lobby').hidden=true; $('#start').hidden=false; };
+$('#lbLeave').onclick=async()=>{ await exitOnline(); $('#lobby').hidden=true; $('#start').hidden=false; };
+document.querySelectorAll('.openRoom3').forEach(b=>b.onclick=()=>openRoom('deck'));
 $('#lbStart').onclick=async()=>{
   if(!online||!online.host) return;
   const list=seats.slice(0,4); if(list.length<2) return;
